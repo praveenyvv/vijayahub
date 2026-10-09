@@ -1,15 +1,50 @@
 import React, { useState } from 'react';
-import { X, Star, ShieldCheck, Truck, Store, ShoppingBag, Plus, Minus, Check, MapPin } from 'lucide-react';
+import {
+  X,
+  Star,
+  ShieldCheck,
+  Store,
+  ShoppingBag,
+  Plus,
+  Minus,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Images
+} from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function ProductModal() {
   const { selectedProduct, setSelectedProduct, addToCart, setIsCartOpen } = useStore();
   const [qty, setQty] = useState(1);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+
+  React.useEffect(() => {
+    setActiveImageIdx(0);
+    setQty(1);
+  }, [selectedProduct?.id]);
 
   if (!selectedProduct) return null;
 
+  const productImages =
+    selectedProduct.images && selectedProduct.images.length > 0
+      ? selectedProduct.images
+      : [selectedProduct.image];
+
+  const currentImage = productImages[activeImageIdx] || productImages[0];
+
   const isOutOfStock = selectedProduct.stock <= 0;
   const discountPercent = Math.round(((selectedProduct.mrp - selectedProduct.price) / selectedProduct.mrp) * 100);
+
+  const handlePrevImage = (e) => {
+    e.stopPropagation();
+    setActiveImageIdx((prev) => (prev === 0 ? productImages.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = (e) => {
+    e.stopPropagation();
+    setActiveImageIdx((prev) => (prev === productImages.length - 1 ? 0 : prev + 1));
+  };
 
   const handleAddAndOpenCart = () => {
     addToCart(selectedProduct, qty);
@@ -30,18 +65,67 @@ export default function ProductModal() {
         </button>
 
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* Left: Product Image */}
+          {/* Left: Product Image Gallery */}
           <div className="bg-slate-50 p-6 flex flex-col items-center justify-center relative">
-            <div className="aspect-square w-full rounded-2xl overflow-hidden bg-white shadow-xs border border-slate-200">
+            {/* Main Active Image */}
+            <div className="aspect-square w-full rounded-2xl overflow-hidden bg-white shadow-xs border border-slate-200 relative group">
               <img
-                src={selectedProduct.image}
+                src={currentImage}
                 alt={selectedProduct.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-all duration-300"
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80';
                 }}
               />
+
+              {/* Navigation Arrows if Multiple Images */}
+              {productImages.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePrevImage}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition-all opacity-80 hover:opacity-100"
+                    title="Previous photo"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition-all opacity-80 hover:opacity-100"
+                    title="Next photo"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                    {activeImageIdx + 1} / {productImages.length}
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Thumbnail Strip (Multi-Image Selector) */}
+            {productImages.length > 1 && (
+              <div className="flex items-center gap-2 mt-3 overflow-x-auto max-w-full pb-1">
+                {productImages.map((imgUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-white shadow-2xs ${
+                      activeImageIdx === idx
+                        ? 'border-amber-600 ring-2 ring-amber-500/20 scale-105'
+                        : 'border-slate-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
             {selectedProduct.badge && (
               <span className="mt-3 bg-amber-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-xs">
                 {selectedProduct.badge}
@@ -142,21 +226,21 @@ export default function ProductModal() {
                 </div>
               </div>
 
-              {/* Vizag Delivery & Pickup badge */}
+              {/* Vizag Store Pickup & 24hr Window badge */}
               <div className="grid grid-cols-2 gap-2 text-xs mb-5">
                 <div className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-2.5 flex items-center gap-2">
                   <Store className="w-4 h-4 text-amber-600 shrink-0" />
                   <div>
                     <p className="font-bold text-slate-900 text-[11px]">Free Store Pickup</p>
-                    <p className="text-[10px] text-slate-500">Ready in 30 mins</p>
+                    <p className="text-[10px] text-slate-500">Dwaraka Nagar Hub</p>
                   </div>
                 </div>
 
                 <div className="bg-orange-50/60 border border-orange-200/60 rounded-xl p-2.5 flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-orange-600 shrink-0" />
+                  <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0" />
                   <div>
-                    <p className="font-bold text-slate-900 text-[11px]">20 KM Delivery</p>
-                    <p className="text-[10px] text-slate-500">Doorstep in Vizag</p>
+                    <p className="font-bold text-slate-900 text-[11px]">24-Hour Window</p>
+                    <p className="text-[10px] text-slate-500">Collect within 24 hrs</p>
                   </div>
                 </div>
               </div>

@@ -107,18 +107,78 @@ export function StoreProvider({ children }) {
     setCart([]);
   };
 
+  // --- Auto-Cancellation & Restock Effect for 24-Hour Expiry ---
+  useEffect(() => {
+    const checkAndCancelExpiredOrders = () => {
+      const now = new Date();
+      let hasChanges = false;
+      const restockMap = {}; // productId -> quantity to restore
+
+      setOrders((prevOrders) => {
+        const updatedOrders = prevOrders.map((order) => {
+          // If already completed or cancelled, skip
+          if (order.status === 'Completed' || order.status === 'Cancelled') {
+            return order;
+          }
+
+          // Check if expired (24 hours passed)
+          if (order.expiresAt && new Date(order.expiresAt) < now) {
+            hasChanges = true;
+            // Record items to restock
+            order.items?.forEach((item) => {
+              restockMap[item.id] = (restockMap[item.id] || 0) + item.quantity;
+            });
+
+            return {
+              ...order,
+              status: 'Cancelled',
+              cancellationReason: 'Auto-cancelled: Store pickup not collected within 24 hours',
+              cancelledAt: now.toISOString()
+            };
+          }
+
+          return order;
+        });
+
+        return hasChanges ? updatedOrders : prevOrders;
+      });
+
+      // If any items need to be restocked, restore them into products inventory
+      if (Object.keys(restockMap).length > 0) {
+        setProducts((prevProducts) =>
+          prevProducts.map((p) => {
+            if (restockMap[p.id]) {
+              return { ...p, stock: p.stock + restockMap[p.id] };
+            }
+            return p;
+          })
+        );
+      }
+    };
+
+    // Run check on mount and every 30 seconds
+    checkAndCancelExpiredOrders();
+    const interval = setInterval(checkAndCancelExpiredOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // --- Order & Inventory Actions ---
   const placeOrder = (orderData) => {
     const newOrderId = `VH-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
     const fullOrder = {
       id: newOrderId,
-      date: new Date().toISOString(),
+      date: now.toISOString(),
+      expiresAt: expiresAt,
+      fulfillmentType: 'pickup', // Strictly store pickup only
       status: 'Placed',
       paymentStatus: 'PAID',
       ...orderData
     };
 
-    // 1. Deduct stock from products automatically
+    // 1. Deduct stock from products automatically upon order placement
     setProducts((prevProducts) =>
       prevProducts.map((p) => {
         const purchasedItem = orderData.items.find((item) => item.id === p.id);
@@ -141,7 +201,51 @@ export function StoreProvider({ children }) {
     return fullOrder;
   };
 
+  // Manual or Admin Cancel & Restock
+  const cancelOrderAndRestock = (orderId, reason = 'Cancelled by Store Admin') => {
+    const orderToCancel = orders.find((o) => o.id === orderId);
+    if (!orderToCancel || orderToCancel.status === 'Cancelled') return;
+
+    // Restore stock
+    setProducts((prevProducts) =>
+      prevProducts.map((p) => {
+        const itemToReturn = orderToCancel.items?.find((it) => it.id === p.id);
+        if (itemToReturn) {
+          return { ...p, stock: p.stock + itemToReturn.quantity };
+        }
+        return p;
+      })
+    );
+
+    // Update order status
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              status: 'Cancelled',
+              cancellationReason: reason,
+              cancelledAt: new Date().toISOString()
+            }
+          : o
+      )
+    );
+
+    if (completedOrder && completedOrder.id === orderId) {
+      setCompletedOrder((prev) => ({
+        ...prev,
+        status: 'Cancelled',
+        cancellationReason: reason
+      }));
+    }
+  };
+
   const updateOrderStatus = (orderId, newStatus) => {
+    if (newStatus === 'Cancelled') {
+      cancelOrderAndRestock(orderId, 'Cancelled by store admin');
+      return;
+    }
+
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
@@ -224,6 +328,7 @@ export function StoreProvider({ children }) {
         clearCart,
         placeOrder,
         updateOrderStatus,
+        cancelOrderAndRestock,
         addProduct,
         updateProduct,
         deleteProduct,

@@ -22,7 +22,7 @@ export default function Navbar() {
           <div className="flex items-center gap-1.5 font-medium">
             <MapPin className="w-3.5 h-3.5 text-amber-200 shrink-0" />
             <span>
-              Direct-to-Consumer in <strong>Visakhapatnam</strong>: Free Store Pickup in Dwaraka Nagar or 20 KM Local Doorstep Delivery!
+              Direct-to-Consumer Central Hub: Free Store Pickup in <strong>Dwaraka Nagar, Vizag</strong> — Collect Within 24 Hours!
             </span>
           </div>
           <div className="hidden md:flex items-center gap-4 text-xs text-amber-100">

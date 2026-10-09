@@ -17,7 +17,7 @@ export default function ProductCard({ product }) {
       {/* Top Image Container */}
       <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden cursor-pointer" onClick={() => setSelectedProduct(product)}>
         <img
-          src={product.image}
+          src={product.images?.[0] || product.image}
           alt={product.title}
           loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -38,6 +38,13 @@ export default function ProductCard({ product }) {
         {discountPercent > 0 && (
           <span className="absolute top-2.5 right-2.5 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
             {discountPercent}% OFF
+          </span>
+        )}
+
+        {/* Photos Count Badge */}
+        {product.images?.length > 1 && (
+          <span className="absolute bottom-2.5 left-2.5 bg-slate-900/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-xs flex items-center gap-1">
+            📷 {product.images.length} Photos
           </span>
         )}
 

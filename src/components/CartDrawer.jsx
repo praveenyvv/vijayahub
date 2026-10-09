@@ -46,28 +46,14 @@ export default function CartDrawer() {
             </button>
           </div>
 
-          {/* Free Delivery Bar */}
+          {/* Store Pickup Banner */}
           {cart.length > 0 && (
-            <div className="bg-amber-50/70 p-3.5 border-b border-amber-200/60">
-              <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
-                {amountNeededForFreeDelivery > 0 ? (
-                  <span className="text-amber-800 flex items-center gap-1">
-                    <Truck className="w-3.5 h-3.5 text-amber-600" />
-                    Add ₹{amountNeededForFreeDelivery.toLocaleString('en-IN')} more for <strong>FREE 20KM Delivery</strong>
-                  </span>
-                ) : (
-                  <span className="text-emerald-700 flex items-center gap-1 font-extrabold">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    🎉 You unlocked FREE 20KM Doorstep Delivery!
-                  </span>
-                )}
-                <span className="text-slate-500">{Math.round(deliveryProgress)}%</span>
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${deliveryProgress}%` }}
-                />
+            <div className="bg-amber-50/80 p-3.5 border-b border-amber-200/70">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                <Store className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Free Store Pickup at <strong>Dwaraka Nagar Hub</strong> (Reserved for 24 hrs)
+                </span>
               </div>
             </div>
           )}
@@ -181,11 +167,11 @@ export default function CartDrawer() {
 
               <div className="flex items-center justify-center gap-4 text-[10px] text-slate-500 pt-1">
                 <span className="flex items-center gap-1">
-                  <Store className="w-3 h-3 text-amber-600" /> Free Store Pickup
+                  <Store className="w-3 h-3 text-amber-600" /> Free Store Pickup (₹0)
                 </span>
                 <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Truck className="w-3 h-3 text-orange-600" /> 20 KM Local Delivery
+                <span className="flex items-center gap-1 font-semibold text-amber-800">
+                  ⚡ 24-Hour Pickup Window
                 </span>
               </div>
             </div>

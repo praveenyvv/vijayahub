@@ -11,7 +11,7 @@ import InvoiceModal from './components/InvoiceModal';
 import AdminDashboard from './components/AdminDashboard';
 import PolicyModal from './components/PolicyModal';
 import Footer from './components/Footer';
-import { Sparkles, Store, Truck, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight } from 'lucide-react';
+import { Sparkles, Store, Clock, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight } from 'lucide-react';
 
 function StorefrontContent() {
   const {
@@ -115,13 +115,13 @@ function StorefrontContent() {
 
               <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center mb-4">
-                  <Truck className="w-6 h-6" />
+                  <Clock className="w-6 h-6" />
                 </div>
                 <h3 className="font-extrabold text-base text-slate-900 mb-1">
-                  2. Prompt 20 KM Local Delivery
+                  2. 24-Hour Pickup Window
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Fast doorstep delivery across Vizag (MVP Colony, Gajuwaka, Madhurawada, Rushikonda). Free delivery on orders over ₹999!
+                  Book online and pick your preferred time slot. Your order remains safely reserved for 24 hours at our Dwaraka Nagar hub.
                 </p>
               </div>
 
@@ -148,7 +148,7 @@ function StorefrontContent() {
                 What Vizag Customers Say
               </h3>
               <p className="text-xs text-slate-500">
-                Verified reviews from our Dwaraka Nagar hub and local deliveries
+                Verified reviews from our Dwaraka Nagar hub
               </p>
             </div>
             <span className="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
@@ -175,7 +175,7 @@ function StorefrontContent() {
                 ⭐⭐⭐⭐⭐
               </div>
               <p className="text-xs text-slate-700 leading-relaxed italic">
-                "Got Preethi Zodiac mixer delivered to Gajuwaka in 3 hours. Packed securely with original company warranty card and GST bill. Excellent service by VijayaHub team."
+                "Ordered Preethi Zodiac mixer online and picked up from Dwaraka Nagar store during the evening slot. Inspected the box on the spot, verified warranty card. Great seamless experience!"
               </p>
               <div className="text-[11px] pt-1 border-t border-slate-100">
                 <p className="font-bold text-slate-900">Anitha Reddy</p>

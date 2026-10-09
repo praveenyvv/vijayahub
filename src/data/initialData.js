@@ -10,6 +10,11 @@ export const INITIAL_PRODUCTS = [
     rating: 4.8,
     reviewsCount: 38,
     image: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80'
+    ],
     description: 'Powerful 750W Vega W5 motor capable of grinding tough ingredients in 2 minutes. Includes MasterChef Food Processor jar for chopping, slicing, grating, and atta kneading.',
     specs: {
       power: '750 Watts Vega W5 Motor',
@@ -30,6 +35,10 @@ export const INITIAL_PRODUCTS = [
     rating: 4.6,
     reviewsCount: 52,
     image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=800&q=80'
+    ],
     description: 'High-speed energy-efficient 1800W electromagnetic induction cooktop with 7 preset Indian cooking menus, LED display, and dual heat sensors.',
     specs: {
       power: '1800 Watts High Efficiency',
@@ -50,6 +59,10 @@ export const INITIAL_PRODUCTS = [
     rating: 4.9,
     reviewsCount: 29,
     image: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80'
+    ],
     description: 'Patented Rapid Air Technology fries with up to 90% less fat. Features digital touch screen with 7 preset cooking programs and Keep Warm function.',
     specs: {
       power: '1400 Watts Rapid Air',
@@ -112,6 +125,11 @@ export const INITIAL_PRODUCTS = [
     rating: 4.9,
     reviewsCount: 88,
     image: 'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1558818498-28c1e002b655?auto=format&fit=crop&w=800&q=80'
+    ],
     description: 'Handpicked, whole white jumbo W-240 kernel cashews. Crispy, naturally sweet, unroasted, and nitrogen-vacuum packed to preserve freshness.',
     specs: {
       packWeight: '500 Grams Pouch',
@@ -132,6 +150,10 @@ export const INITIAL_PRODUCTS = [
     rating: 4.8,
     reviewsCount: 76,
     image: 'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=800&q=80'
+    ],
     description: '100% genuine California Nonpareil almonds. Rich in plant protein, Vitamin E, and antioxidants. Perfectly crunchy with zero bitter taste.',
     specs: {
       packWeight: '500 Grams Airtight Standup Pouch',
@@ -207,16 +229,18 @@ export const INITIAL_PRODUCTS = [
 export const INITIAL_ORDERS = [
   {
     id: 'VH-1042',
-    date: '2026-10-08T09:15:00',
+    date: '2026-10-09T10:15:00',
+    expiresAt: '2026-10-10T10:15:00',
     customer: {
       name: 'Ramesh Varma',
       phone: '9848022341',
       email: 'ramesh.varma@gmail.com',
-      address: 'Plot 42, Sector 3, MVP Colony, Visakhapatnam',
-      pincode: '530017',
-      landmark: 'Near AS Raja College'
+      address: 'Central Store Hub, Dwaraka Nagar, Visakhapatnam',
+      pincode: '530016',
+      landmark: 'Near RTC Complex'
     },
-    fulfillmentType: 'delivery', // 'delivery' or 'pickup'
+    fulfillmentType: 'pickup',
+    pickupSlot: 'Today: Evening (5:00 PM - 8:30 PM)',
     items: [
       {
         id: 'prod-ka-1',
@@ -232,25 +256,28 @@ export const INITIAL_ORDERS = [
       }
     ],
     itemSubtotal: 8497,
-    deliveryFee: 0, // Free above 999
+    deliveryFee: 0,
     total: 8497,
-    paymentMethod: 'UPI (PhonePe)',
+    paymentMethod: 'Direct UPI (9392624326@idfcfirst)',
     paymentStatus: 'PAID',
-    status: 'Packed', // 'Placed', 'Packed', 'Out for Delivery', 'Completed'
-    notes: 'Please call before arriving at the gate.'
+    upiRefNumber: '428901234567',
+    status: 'Ready for Pickup', // 'Placed', 'Ready for Pickup', 'Completed', 'Cancelled'
+    notes: 'Customer will collect by 6:30 PM.'
   },
   {
     id: 'VH-1041',
-    date: '2026-10-07T16:30:00',
+    date: '2026-10-08T16:30:00',
+    expiresAt: '2026-10-09T16:30:00',
     customer: {
       name: 'Sravani Devi',
       phone: '9490155678',
       email: 'sravani.d@yahoo.com',
-      address: 'Near Old Gajuwaka Junction, Visakhapatnam',
-      pincode: '530026',
-      landmark: 'Opposite State Bank of India'
+      address: 'Central Store Hub, Dwaraka Nagar, Visakhapatnam',
+      pincode: '530016',
+      landmark: 'Near RTC Complex'
     },
     fulfillmentType: 'pickup',
+    pickupSlot: 'Yesterday: Afternoon (1:00 PM - 5:00 PM)',
     items: [
       {
         id: 'prod-df-2',
@@ -268,10 +295,10 @@ export const INITIAL_ORDERS = [
     itemSubtotal: 1488,
     deliveryFee: 0,
     total: 1488,
-    paymentMethod: 'Pay on Pickup (UPI/Cash)',
+    paymentMethod: 'Pay on Store Pickup (Cash/UPI)',
     paymentStatus: 'PAID',
     status: 'Completed',
-    notes: 'Customer collected at Dwaraka Nagar hub.'
+    notes: 'Collected at Dwaraka Nagar hub counter.'
   }
 ];
 
@@ -281,10 +308,8 @@ export const VIZAG_STORE_INFO = {
   phone: '+91 98480 54321',
   whatsapp: '+91 98480 54321',
   email: 'orders@vijayahub.com',
-  workingHours: '10:00 AM - 8:30 PM (All 7 Days)',
-  deliveryRadiusKm: 20,
-  freeDeliveryThreshold: 999,
-  localDeliveryFlatFee: 40,
+  workingHours: '10:00 AM - 8:30 PM (All 7 Days Open)',
+  pickupWindowHours: 24, // strictly 24 hours
   fssaiNumber: '10123000019842',
   gstNumber: '37AAAAA0000A1Z5',
   upiId: '9392624326@idfcfirst',

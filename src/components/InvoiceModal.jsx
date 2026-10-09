@@ -106,12 +106,13 @@ export default function InvoiceModal() {
                 Fulfillment Mode:
               </p>
               <p className="font-extrabold text-slate-900">
-                {invoiceOrder.fulfillmentType === 'pickup'
-                  ? 'Store Pickup (Dwaraka Nagar Hub)'
-                  : 'Doorstep Delivery (Within 20 KM)'}
+                Store Pickup (Dwaraka Nagar Hub)
               </p>
               <p className="text-slate-600 text-[11px] mt-0.5 max-w-xs">
-                {invoiceOrder.customer.address} (Pincode: {invoiceOrder.customer.pincode})
+                Slot: <strong>{invoiceOrder.pickupSlot || 'Immediate'}</strong>
+              </p>
+              <p className="text-slate-400 text-[10px] mt-0.5">
+                Counter: Door No. 47-10-22, Dwaraka Nagar, Vizag
               </p>
             </div>
           </div>

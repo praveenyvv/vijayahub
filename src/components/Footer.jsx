@@ -71,7 +71,7 @@ export default function Footer({ onOpenPolicy }) {
                   onClick={() => onOpenPolicy('shipping')}
                   className="hover:text-amber-400 transition-colors text-left"
                 >
-                  20 KM Shipping & Pickup Policy
+                  Store Pickup & 24-Hr Expiry Policy
                 </button>
               </li>
               <li>

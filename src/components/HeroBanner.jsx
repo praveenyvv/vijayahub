@@ -32,9 +32,9 @@ export default function HeroBanner() {
             </h1>
 
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6 max-w-2xl">
-              Buy directly from our Vizag central hub at genuine wholesale rates. Enjoy 
-              <strong className="text-white"> Free Store Pickup</strong> at Dwaraka Nagar or prompt 
-              <strong className="text-white"> 20 KM Local Doorstep Delivery</strong> across Visakhapatnam!
+              Buy directly from our Vizag central hub at genuine wholesale rates. Reserve your items online and enjoy 
+              <strong className="text-white"> Free Store Pickup</strong> at Dwaraka Nagar within your selected 
+              <strong className="text-white"> 24-Hour Pickup Window</strong>!
             </p>
 
             {/* Key Value Propositions */}
@@ -48,10 +48,10 @@ export default function HeroBanner() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-orange-400 shrink-0" />
+                <Zap className="w-4 h-4 text-orange-400 shrink-0" />
                 <div className="text-left">
-                  <p className="text-xs font-bold text-white">20 KM Local Radius</p>
-                  <p className="text-[10px] text-slate-400">Doorstep delivery in Vizag</p>
+                  <p className="text-xs font-bold text-white">24-Hour Window</p>
+                  <p className="text-[10px] text-slate-400">Reserved for 24 hrs</p>
                 </div>
               </div>
 

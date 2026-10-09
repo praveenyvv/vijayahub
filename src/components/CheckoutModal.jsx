@@ -2,23 +2,32 @@ import React, { useState } from 'react';
 import {
   X,
   Store,
-  Truck,
+  Clock,
   ShieldCheck,
   MapPin,
   Smartphone,
   Banknote,
-  AlertCircle,
+  AlertTriangle,
   ArrowRight,
   ArrowLeft,
   QrCode,
   Copy,
   Check,
   ExternalLink,
-  Lock
+  CalendarCheck
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useStore } from '../context/StoreContext';
 import confetti from 'canvas-confetti';
+
+const PICKUP_SLOTS = [
+  { id: 'today-now', label: 'Today: Immediate (Ready in 30 mins • 10 AM - 1 PM)' },
+  { id: 'today-afternoon', label: 'Today: Afternoon (1:00 PM - 5:00 PM)' },
+  { id: 'today-evening', label: 'Today: Evening (5:00 PM - 8:30 PM)' },
+  { id: 'tomorrow-morning', label: 'Tomorrow: Morning (10:00 AM - 1:00 PM)' },
+  { id: 'tomorrow-afternoon', label: 'Tomorrow: Afternoon (1:00 PM - 5:00 PM)' },
+  { id: 'tomorrow-evening', label: 'Tomorrow: Evening (5:00 PM - 8:30 PM)' }
+];
 
 export default function CheckoutModal() {
   const {
@@ -33,16 +42,10 @@ export default function CheckoutModal() {
   // Multi-step checkout: 'details' -> 'payment' -> finish
   const [step, setStep] = useState('details'); // 'details' or 'payment'
 
-  const [fulfillmentType, setFulfillmentType] = useState('pickup'); // 'pickup' or 'delivery'
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-
-  // Delivery fields
-  const [address, setAddress] = useState('');
-  const [pincode, setPincode] = useState('530016');
-  const [landmark, setLandmark] = useState('');
-  const [notes, setNotes] = useState('');
+  const [pickupSlot, setPickupSlot] = useState(PICKUP_SLOTS[0].label);
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState('upi_qr'); // 'upi_qr' or 'cod'
@@ -55,19 +58,7 @@ export default function CheckoutModal() {
   const upiId = storeInfo.upiId || '9392624326@idfcfirst';
   const payeeName = storeInfo.upiPayeeName || 'VijayaHub';
 
-  // Pincode validation (Vizag pincodes generally start with 530xxx)
-  const isVizagPincode = (code) => {
-    const trimmed = code.trim();
-    return /^5300\d{2}$/.test(trimmed) || /^531\d{3}$/.test(trimmed);
-  };
-
-  const validPincode = fulfillmentType === 'delivery' ? isVizagPincode(pincode) : true;
-
-  // Delivery fee calculation
-  const isFreeDelivery = cartSubtotal >= storeInfo.freeDeliveryThreshold;
-  const deliveryFee =
-    fulfillmentType === 'pickup' ? 0 : isFreeDelivery ? 0 : storeInfo.localDeliveryFlatFee;
-  const finalTotal = cartSubtotal + deliveryFee;
+  const finalTotal = cartSubtotal; // Store pickup is 100% Free (₹0 fee)
 
   // Generate real dynamic UPI intent URL with exact order amount
   const orderRef = Math.floor(1000 + Math.random() * 9000);
@@ -81,7 +72,7 @@ export default function CheckoutModal() {
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  // Step 1 Validation & Proceed
+  // Step 1: Proceed to Payment or Finish
   const handleProceedToPayment = (e) => {
     if (e) e.preventDefault();
 
@@ -90,25 +81,13 @@ export default function CheckoutModal() {
       return;
     }
     if (!customerPhone.trim() || customerPhone.trim().length < 10) {
-      alert('Please enter a valid 10-digit mobile number for order updates.');
+      alert('Please enter a valid 10-digit mobile number for order verification.');
       return;
     }
-    if (fulfillmentType === 'delivery') {
-      if (!address.trim()) {
-        alert('Please enter your complete delivery address in Visakhapatnam.');
-        return;
-      }
-      if (!validPincode) {
-        alert(
-          'We currently only deliver within 20 KM radius of Visakhapatnam (Pincodes starting with 530xxx). Please choose Store Pickup instead.'
-        );
-        return;
-      }
-    }
 
-    // If Cash on delivery / Pay on pickup, finalize immediately
+    // If Pay at Store Counter on Pickup, finalize immediately
     if (paymentMethod === 'cod') {
-      finalizeOrder('Pay on Store Pickup / Cash on Delivery', 'PENDING_AT_HANDOVER');
+      finalizeOrder('Pay at Store Counter on Pickup (Cash/UPI)', 'PENDING_AT_HANDOVER');
       return;
     }
 
@@ -153,11 +132,12 @@ export default function CheckoutModal() {
           name: customerName,
           phone: customerPhone,
           email: customerEmail || `${customerPhone}@customer.vijayahub.com`,
-          address: fulfillmentType === 'delivery' ? address : storeInfo.address,
-          pincode: fulfillmentType === 'delivery' ? pincode : '530016',
-          landmark: landmark || 'Dwaraka Nagar Hub'
+          address: storeInfo.address,
+          pincode: '530016',
+          landmark: 'Dwaraka Nagar Central Hub'
         },
-        fulfillmentType,
+        fulfillmentType: 'pickup', // Strictly Store Pickup Only
+        pickupSlot: pickupSlot,
         items: cart.map((item) => ({
           id: item.id,
           title: item.title,
@@ -165,12 +145,12 @@ export default function CheckoutModal() {
           quantity: item.quantity
         })),
         itemSubtotal: cartSubtotal,
-        deliveryFee,
+        deliveryFee: 0,
         total: finalTotal,
         paymentMethod: methodDescription,
         paymentStatus: paymentStatus,
-        upiRefNumber: upiRefNumber || 'Direct UPI Transfer',
-        notes: notes || 'Direct Order from vijayahub.com'
+        upiRefNumber: upiRefNumber || 'Counter Payment',
+        notes: `Selected Slot: ${pickupSlot}. Strictly 24-hr pickup window.`
       });
 
       // Reset step
@@ -196,15 +176,15 @@ export default function CheckoutModal() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-lg text-white">
-                  {step === 'details' ? 'VijayaHub Checkout' : 'Scan UPI QR to Pay'}
+                  {step === 'details' ? 'Store Pickup Checkout' : 'Scan UPI QR to Pay'}
                 </span>
                 <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-400/30">
-                  {step === 'details' ? 'Step 1 of 2' : 'Step 2: Payment'}
+                  {step === 'details' ? 'Step 1: Details & Slot' : 'Step 2: Payment'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
                 {step === 'details'
-                  ? 'Enter delivery details & select payment option'
+                  ? 'Exclusively Direct Store Pickup • Dwaraka Nagar, Visakhapatnam'
                   : `Pay exactly ₹${finalTotal.toLocaleString('en-IN')} to ${upiId}`}
               </p>
             </div>
@@ -222,95 +202,85 @@ export default function CheckoutModal() {
         </div>
 
         {/* ============================================================ */}
-        {/* STEP 1: DETAILS & METHOD SELECTION (NO QR CODE SHOWN HERE)   */}
+        {/* STEP 1: DETAILS & PICKUP SLOT SELECTION (NO QR CODE HERE)    */}
         {/* ============================================================ */}
         {step === 'details' && (
           <div className="p-5 sm:p-6 max-h-[80vh] overflow-y-auto space-y-5">
-            {/* 1. Fulfillment Type */}
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-                1. Choose Receiving Method:
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Store Pickup */}
-                <button
-                  type="button"
-                  onClick={() => setFulfillmentType('pickup')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    fulfillmentType === 'pickup'
-                      ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-500/20'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-slate-900">
-                      <Store className="w-4 h-4 text-amber-600" />
-                      <span>Store Pickup</span>
-                    </div>
-                    <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
-                      FREE (₹0)
+            {/* Store Pickup Banner & Address */}
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-white border border-amber-300/80 rounded-2xl p-4 text-xs text-amber-950">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="font-extrabold text-slate-900 text-sm">
+                      {storeInfo.name}
+                    </p>
+                    <span className="bg-emerald-100 text-emerald-800 font-extrabold text-[10px] px-2 py-0.2 rounded-full">
+                      FREE (₹0 Fee)
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    Collect from Dwaraka Nagar hub. Ready in 30 minutes!
+                  <p className="text-slate-600 text-[11px] leading-relaxed mb-1.5">
+                    {storeInfo.address}
                   </p>
-                </button>
-
-                {/* Local 20 KM Delivery */}
-                <button
-                  type="button"
-                  onClick={() => setFulfillmentType('delivery')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    fulfillmentType === 'delivery'
-                      ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-500/20'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-slate-900">
-                      <Truck className="w-4 h-4 text-orange-600" />
-                      <span>Local 20 KM Delivery</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-600">
-                      {deliveryFee === 0 ? 'FREE' : `+₹${deliveryFee}`}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    Doorstep delivery anywhere across Visakhapatnam.
+                  <p className="text-[11px] text-amber-800 font-semibold">
+                    ⏰ Hub Hours: {storeInfo.workingHours} | 📞 Helpline: {storeInfo.phone}
                   </p>
-                </button>
+                </div>
               </div>
             </div>
 
-            {/* Pickup Details Box */}
-            {fulfillmentType === 'pickup' && (
-              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950">
-                <div className="flex items-start gap-2.5">
-                  <MapPin className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-extrabold text-amber-900 mb-0.5">
-                      Pickup Location: {storeInfo.name}
-                    </p>
-                    <p className="text-amber-800 text-[11px] leading-relaxed mb-1.5">
-                      {storeInfo.address}
-                    </p>
-                    <p className="text-[10px] text-amber-700 font-semibold">
-                      ⏰ Working Hours: {storeInfo.workingHours} | 📞 Helpline: {storeInfo.phone}
-                    </p>
-                  </div>
-                </div>
+            {/* CRITICAL: 24-Hour Expiry & Auto-Restock Warning Banner */}
+            <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-3.5 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-950">
+                <p className="font-extrabold text-rose-900 mb-0.5">
+                  Important 24-Hour Pickup & Inventory Rule:
+                </p>
+                <p className="text-rose-800 text-[11px] leading-relaxed">
+                  Your ordered items are reserved at our Dwaraka Nagar hub for <strong>exactly 24 hours</strong>. If not collected within 24 hours, the order is <strong>automatically cancelled</strong> and the stock is <strong>automatically restocked into inventory</strong> for other customers.
+                </p>
               </div>
-            )}
+            </div>
 
-            {/* 2. Customer Contact */}
-            <div className="space-y-3">
+            {/* 1. Pickup Slot Selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>1. Select Your Pickup Time Slot (Within 24 Hours): *</span>
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {PICKUP_SLOTS.map((slot) => (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => setPickupSlot(slot.label)}
+                    className={`p-3 rounded-xl border text-left text-xs font-medium transition-all ${
+                      pickupSlot === slot.label
+                        ? 'border-amber-600 bg-amber-50 text-amber-950 font-bold ring-2 ring-amber-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarCheck className={`w-3.5 h-3.5 ${pickupSlot === slot.label ? 'text-amber-600' : 'text-slate-400'}`} />
+                      <span className="line-clamp-1">{slot.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Customer Contact Information */}
+            <div className="space-y-3 pt-1 border-t border-slate-100">
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                2. Your Contact Information:
+                2. Contact Information for Counter Pickup:
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Full Name *
+                    Your Full Name *
                   </label>
                   <input
                     type="text"
@@ -339,82 +309,11 @@ export default function CheckoutModal() {
               </div>
             </div>
 
-            {/* 3. Delivery Address (Only if 20KM Delivery) */}
-            {fulfillmentType === 'delivery' && (
-              <div className="space-y-3 pt-1 border-t border-slate-100">
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  3. Delivery Address in Visakhapatnam:
-                </label>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Door No, Flat, Street Address *
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    placeholder="e.g. Flat 302, Sai Residency, Sector 4, MVP Colony"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-1 focus:ring-amber-500 focus:outline-hidden font-medium"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-600">Vizag Pincode *</label>
-                      {pincode && (
-                        <span
-                          className={`text-[10px] font-bold ${
-                            validPincode ? 'text-emerald-700' : 'text-rose-600'
-                          }`}
-                        >
-                          {validPincode ? '✓ Serviceable in Vizag' : '✗ Outside 20KM'}
-                        </span>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      placeholder="e.g. 530017"
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                      className={`w-full px-3 py-2 text-xs rounded-xl focus:outline-hidden font-mono font-bold ${
-                        validPincode
-                          ? 'bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-amber-500'
-                          : 'bg-rose-50 border border-rose-300 text-rose-900 focus:ring-1 focus:ring-rose-500'
-                      }`}
-                    />
-                    {!validPincode && (
-                      <p className="text-[10px] text-rose-600 mt-1">
-                        Please enter a valid Vizag pincode (530001–530052) or switch to Store Pickup.
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Landmark / Instructions
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Opp. Rythu Bazar"
-                      value={landmark}
-                      onChange={(e) => setLandmark(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-1 focus:ring-amber-500 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 4. Payment Option Choice */}
+            {/* 3. Payment Preference */}
             <div className="space-y-3 pt-1 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  {fulfillmentType === 'delivery' ? '4. Payment Preference:' : '3. Payment Preference:'}
+                  3. Payment Preference:
                 </label>
                 <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -437,7 +336,7 @@ export default function CheckoutModal() {
                     <span>Instant UPI QR Code</span>
                   </div>
                   <p className="text-[10px] text-slate-500">
-                    Scan via PhonePe, GPay, Paytm on next screen
+                    Pay now via GPay / PhonePe (Fast pickup)
                   </p>
                 </button>
 
@@ -452,12 +351,10 @@ export default function CheckoutModal() {
                 >
                   <div className="flex items-center gap-2 font-bold text-xs text-slate-900 mb-1">
                     <Banknote className="w-4 h-4 text-emerald-600" />
-                    <span>
-                      {fulfillmentType === 'pickup' ? 'Pay on Store Pickup' : 'Cash / UPI on Delivery'}
-                    </span>
+                    <span>Pay at Counter</span>
                   </div>
                   <p className="text-[10px] text-slate-500">
-                    Pay when you collect your order
+                    Pay cash/UPI when you inspect items at hub
                   </p>
                 </button>
               </div>
@@ -472,16 +369,8 @@ export default function CheckoutModal() {
                 </span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>
-                  {fulfillmentType === 'pickup' ? 'Store Pickup Fee:' : 'Vizag 20 KM Delivery Fee:'}
-                </span>
-                <span className="font-semibold text-slate-800">
-                  {deliveryFee === 0 ? (
-                    <span className="text-emerald-700 font-bold">FREE (₹0)</span>
-                  ) : (
-                    `₹${deliveryFee}`
-                  )}
-                </span>
+                <span>Store Pickup Fee:</span>
+                <span className="text-emerald-700 font-bold">FREE (₹0)</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-extrabold text-slate-900">
                 <span>Final Total to Pay:</span>
@@ -499,7 +388,7 @@ export default function CheckoutModal() {
                 <span>
                   {paymentMethod === 'upi_qr'
                     ? `Proceed to UPI Payment (₹${finalTotal.toLocaleString('en-IN')})`
-                    : `Confirm & Place Order (₹${finalTotal.toLocaleString('en-IN')})`}
+                    : `Confirm Store Pickup Order (₹${finalTotal.toLocaleString('en-IN')})`}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -508,7 +397,7 @@ export default function CheckoutModal() {
         )}
 
         {/* ============================================================ */}
-        {/* STEP 2: DEDICATED UPI PAYMENT SCREEN (SHOWN AFTER PROCEED)    */}
+        {/* STEP 2: DEDICATED UPI PAYMENT SCREEN                         */}
         {/* ============================================================ */}
         {step === 'payment' && (
           <div className="p-5 sm:p-6 max-h-[80vh] overflow-y-auto space-y-5">
@@ -523,11 +412,11 @@ export default function CheckoutModal() {
                   ₹{finalTotal.toLocaleString('en-IN')}
                 </p>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Order Total for {customerName} ({fulfillmentType === 'pickup' ? 'Store Pickup' : '20 KM Delivery'})
+                  Store Pickup Order for <strong>{customerName}</strong> ({pickupSlot})
                 </p>
               </div>
 
-              {/* High-Resolution Dynamic QR Code */}
+              {/* Dynamic QR Code */}
               <div className="flex flex-col items-center justify-center">
                 <div className="p-4 bg-white rounded-2xl shadow-lg border-2 border-slate-200 inline-block relative">
                   <QRCodeSVG
@@ -608,7 +497,7 @@ export default function CheckoutModal() {
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-mono font-bold"
                 />
                 <p className="text-[10px] text-slate-500">
-                  After payment, enter your UTR number above and click the button below to confirm your order.
+                  After payment, enter your UTR number above and click the button below to reserve your parcel.
                 </p>
               </div>
             </div>
@@ -624,7 +513,7 @@ export default function CheckoutModal() {
                 {isProcessingPayment ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Recording Payment & Placing Order...
+                    Reserving Items & Placing Order...
                   </span>
                 ) : (
                   <>
@@ -640,7 +529,7 @@ export default function CheckoutModal() {
                 className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Go back and edit contact / delivery details</span>
+                <span>Go back and edit slot / contact details</span>
               </button>
             </div>
           </div>

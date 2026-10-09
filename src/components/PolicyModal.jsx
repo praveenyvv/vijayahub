@@ -63,23 +63,27 @@ export default function PolicyModal({ policyType, onClose }) {
           {policyType === 'shipping' && (
             <>
               <p className="font-bold text-slate-900 text-sm">
-                Visakhapatnam Local Shipping & Store Pickup Policy:
+                Visakhapatnam Store Pickup & 24-Hour Inventory Policy:
               </p>
               <div>
-                <h4 className="font-bold text-slate-900 mb-1">1. Free Store Pickup:</h4>
+                <h4 className="font-bold text-slate-900 mb-1">1. Free Central Hub Pickup:</h4>
                 <p>
-                  Orders marked for Store Pickup are prepared and kept ready at our Dwaraka Nagar central hub within <strong>30 to 45 minutes</strong> of online placement. Customers can pick up their parcel between 10:00 AM and 8:30 PM (All 7 Days).
+                  VijayaHub operates exclusively on a direct store pickup model from our central hub at <strong>Door No. 47-10-22, 1st Floor, Near RTC Complex, Dwaraka Nagar, Visakhapatnam</strong>. Pickup is 100% FREE (₹0 fee).
+                </p>
+                <p className="mt-1">
+                  <strong>Hub Working Hours:</strong> 10:00 AM to 8:30 PM (Open all 7 days a week).
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-1">2. Local 20 KM Delivery Radius:</h4>
+                <h4 className="font-bold text-slate-900 mb-1">2. 24-Hour Pickup Window & Auto-Cancellation:</h4>
                 <p>
-                  We offer direct doorstep delivery across Visakhapatnam (Pincodes: 530001 to 530052, including MVP Colony, Gajuwaka, Dwaraka Nagar, Madhurawada, Seethammadhara, Rushikonda, and Pendurthi).
+                  To ensure fresh inventory and fair availability for all customers, all items in your order are reserved for <strong>exactly 24 hours</strong> from the time of order placement.
                 </p>
                 <ul className="list-disc pl-4 mt-1 space-y-1">
-                  <li><strong>Delivery Time:</strong> Same-day delivery within 2 to 4 hours for orders placed before 5:00 PM.</li>
-                  <li><strong>Delivery Fee:</strong> ₹40 flat fee for orders under ₹999. <strong>FREE DELIVERY</strong> on all orders of ₹999 and above.</li>
+                  <li><strong>Collection Window:</strong> Customers must collect their parcel during their selected pickup time slot within 24 hours.</li>
+                  <li><strong>Automatic Cancellation:</strong> If an order is not collected within 24 hours, the order is <strong>automatically cancelled</strong> by the system.</li>
+                  <li><strong>Inventory Restocking:</strong> All reserved products are immediately restocked into inventory for other shoppers.</li>
                 </ul>
               </div>
             </>

@@ -16,7 +16,11 @@ import {
   Search,
   ExternalLink,
   Lock,
-  Eye
+  Eye,
+  Upload,
+  Image as ImageIcon,
+  X,
+  Star
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -55,6 +59,7 @@ export default function AdminDashboard() {
   // Add / Edit Product Modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState(null);
+  const [customUrlInput, setCustomUrlInput] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -63,6 +68,7 @@ export default function AdminDashboard() {
     price: '',
     mrp: '',
     stock: '',
+    images: [IMAGE_PRESETS[0].url],
     image: IMAGE_PRESETS[0].url,
     description: '',
     power: '',
@@ -82,12 +88,14 @@ export default function AdminDashboard() {
 
   const openAddProductModal = () => {
     setEditingProductId(null);
+    setCustomUrlInput('');
     setFormData({
       title: '',
       category: 'Kitchen Appliances',
       price: '',
       mrp: '',
       stock: '10',
+      images: [IMAGE_PRESETS[0].url],
       image: IMAGE_PRESETS[0].url,
       description: '',
       power: '',
@@ -102,13 +110,20 @@ export default function AdminDashboard() {
 
   const openEditProductModal = (product) => {
     setEditingProductId(product.id);
+    setCustomUrlInput('');
+    const existingImages =
+      Array.isArray(product.images) && product.images.length > 0
+        ? [...product.images]
+        : (product.image ? [product.image] : [IMAGE_PRESETS[0].url]);
+
     setFormData({
       title: product.title,
       category: product.category,
       price: product.price,
       mrp: product.mrp,
       stock: product.stock,
-      image: product.image,
+      images: existingImages,
+      image: existingImages[0] || product.image,
       description: product.description || '',
       power: product.specs?.power || '',
       warranty: product.specs?.warranty || '',
@@ -120,15 +135,97 @@ export default function AdminDashboard() {
     setIsProductModalOpen(true);
   };
 
+  // Multiple image file upload handler (converts files to base64 Data URLs)
+  const handleImageFilesUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const readers = files.map((file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readers).then((newBase64Images) => {
+      setFormData((prev) => {
+        const validNew = newBase64Images.filter(Boolean);
+        const updated = [...(prev.images || []), ...validNew];
+        return {
+          ...prev,
+          images: updated,
+          image: updated[0] || prev.image
+        };
+      });
+    });
+    e.target.value = '';
+  };
+
+  const handleAddUrlImage = () => {
+    const trimmed = customUrlInput.trim();
+    if (!trimmed) return;
+    setFormData((prev) => {
+      const updated = [...(prev.images || []), trimmed];
+      return {
+        ...prev,
+        images: updated,
+        image: updated[0] || trimmed
+      };
+    });
+    setCustomUrlInput('');
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    setFormData((prev) => {
+      const updated = prev.images.filter((_, idx) => idx !== indexToRemove);
+      return {
+        ...prev,
+        images: updated,
+        image: updated[0] || ''
+      };
+    });
+  };
+
+  const handleSetCoverImage = (indexToCover) => {
+    setFormData((prev) => {
+      const updated = [...prev.images];
+      const [chosen] = updated.splice(indexToCover, 1);
+      updated.unshift(chosen);
+      return {
+        ...prev,
+        images: updated,
+        image: chosen
+      };
+    });
+  };
+
+  const handlePresetAdd = (presetUrl) => {
+    setFormData((prev) => {
+      const updated = [...(prev.images || []), presetUrl];
+      return {
+        ...prev,
+        images: updated,
+        image: updated[0] || presetUrl
+      };
+    });
+  };
+
   const handleSaveProduct = (e) => {
     e.preventDefault();
+    const finalImages =
+      formData.images && formData.images.length > 0
+        ? formData.images
+        : (formData.image ? [formData.image] : [IMAGE_PRESETS[0].url]);
+
     const productPayload = {
       title: formData.title,
       category: formData.category,
       price: Number(formData.price),
       mrp: Number(formData.mrp || formData.price),
       stock: Number(formData.stock),
-      image: formData.image,
+      images: finalImages,
+      image: finalImages[0],
       description: formData.description,
       badge: formData.badge,
       specs:
@@ -367,16 +464,23 @@ export default function AdminDashboard() {
                         </td>
 
                         {/* Fulfillment */}
+                        {/* Pickup Slot & 24hr Expiry */}
                         <td className="py-3.5 px-3">
-                          {order.fulfillmentType === 'pickup' ? (
-                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded-full text-[10px] border border-amber-200">
-                              <Store className="w-3 h-3 text-amber-600" /> Store Pickup
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 font-bold px-2 py-0.5 rounded-full text-[10px] border border-amber-200">
+                              <Store className="w-3 h-3 text-amber-600" /> Dwaraka Nagar Hub
                             </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-800 font-bold px-2 py-0.5 rounded-full text-[10px] border border-orange-200">
-                              <Truck className="w-3 h-3 text-orange-600" /> 20KM ({order.customer.pincode})
-                            </span>
-                          )}
+                            <p className="text-[11px] text-slate-700 font-semibold line-clamp-1">
+                              Slot: {order.pickupSlot || 'Immediate'}
+                            </p>
+                            {order.expiresAt && order.status !== 'Completed' && (
+                              <p className={`text-[10px] font-mono font-bold ${
+                                new Date(order.expiresAt) < new Date() ? 'text-rose-600' : 'text-slate-500'
+                              }`}>
+                                {new Date(order.expiresAt) < new Date() ? '⚠️ Expired (Restocked)' : `Expires: ${new Date(order.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                              </p>
+                            )}
+                          </div>
                         </td>
 
                         {/* Items */}
@@ -412,13 +516,19 @@ export default function AdminDashboard() {
                           <select
                             value={order.status}
                             onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                            className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-hidden"
+                            className={`border rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-hidden ${
+                              order.status === 'Cancelled'
+                                ? 'bg-rose-50 border-rose-300 text-rose-800'
+                                : order.status === 'Completed'
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                : 'bg-white border-slate-300 text-slate-800'
+                            }`}
                           >
                             <option value="Placed">Placed</option>
                             <option value="Packed">Packed</option>
-                            <option value="Out for Delivery">Out for Delivery</option>
                             <option value="Ready for Pickup">Ready for Pickup</option>
-                            <option value="Completed">Completed / Delivered</option>
+                            <option value="Completed">Completed / Collected</option>
+                            <option value="Cancelled">Cancel & Restock</option>
                           </select>
                         </td>
 
@@ -501,11 +611,18 @@ export default function AdminDashboard() {
                         {/* Title & Image */}
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
-                            <img
-                              src={product.image}
-                              alt={product.title}
-                              className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
-                            />
+                            <div className="relative shrink-0">
+                              <img
+                                src={product.images?.[0] || product.image}
+                                alt={product.title}
+                                className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200"
+                              />
+                              {(product.images?.length > 1) && (
+                                <span className="absolute -bottom-1 -right-1 bg-black/75 text-white text-[9px] font-bold px-1 py-0.2 rounded-md shadow-xs">
+                                  +{product.images.length}
+                                </span>
+                              )}
+                            </div>
                             <div>
                               <p className="font-bold text-slate-900 line-clamp-1">{product.title}</p>
                               <p className="text-[11px] text-slate-400 line-clamp-1">
@@ -606,15 +723,15 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 3: STORE & DELIVERY SETTINGS */}
+        {/* TAB 3: STORE & PICKUP RULES */}
         {activeTab === 'settings' && (
           <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 space-y-6">
             <div>
               <h3 className="text-base font-extrabold text-slate-900">
-                Visakhapatnam Local Delivery & Pickup Rules
+                Visakhapatnam Store Pickup & 24-Hour Inventory Rules
               </h3>
               <p className="text-xs text-slate-500">
-                These rules govern your 20 KM radius fulfillment and store pickup options.
+                Our operations are strictly store pickup at Dwaraka Nagar with automated inventory protection.
               </p>
             </div>
 
@@ -623,7 +740,7 @@ export default function AdminDashboard() {
               <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-3">
                 <div className="flex items-center gap-2">
                   <Store className="w-4 h-4 text-amber-600" />
-                  <h4 className="font-bold text-sm text-slate-900">Self-Pickup Hub Details</h4>
+                  <h4 className="font-bold text-sm text-slate-900">Dwaraka Nagar Hub Location</h4>
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-700">
                   <p><strong>Hub Name:</strong> {storeInfo.name}</p>
@@ -636,19 +753,18 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Delivery Radius Settings */}
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-3">
+              {/* 24-Hour Auto Restock Rule */}
+              <div className="bg-amber-50/60 rounded-2xl p-5 border border-amber-200 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-orange-600" />
-                  <h4 className="font-bold text-sm text-slate-900">Local Delivery Model</h4>
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <h4 className="font-bold text-sm text-amber-950">24-Hour Expiry & Auto-Restock Rule</h4>
                 </div>
-                <div className="space-y-1.5 text-xs text-slate-700">
-                  <p><strong>Delivery Radius:</strong> {storeInfo.deliveryRadiusKm} KM from Dwaraka Nagar</p>
-                  <p><strong>Standard Local Fee:</strong> ₹{storeInfo.localDeliveryFlatFee}</p>
-                  <p><strong>Free Delivery Threshold:</strong> Free on orders &ge; ₹{storeInfo.freeDeliveryThreshold}</p>
-                  <p><strong>Pincodes Covered:</strong> 530001 to 530052 (Vizag Urban & Suburbs)</p>
-                  <p className="text-slate-500 text-[11px] pt-1">
-                    Orders are delivered within 2–4 hours using local staff or on-demand Porter/Rapido bikes.
+                <div className="space-y-1.5 text-xs text-amber-900">
+                  <p><strong>Pickup Window:</strong> 24 Hours from online order booking</p>
+                  <p><strong>Auto-Cancellation:</strong> Any order not collected within 24 hours is automatically cancelled by the system.</p>
+                  <p><strong>Automatic Restock:</strong> When an order expires or is cancelled, all items are <strong>immediately returned to product stock</strong> so other shoppers can purchase them.</p>
+                  <p className="text-emerald-800 font-bold pt-1">
+                    ✓ Zero stranded stock • Protected inventory
                   </p>
                 </div>
               </div>
@@ -751,33 +867,157 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Image URL & Preset Selection */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Product Photo URL</label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-mono text-[11px] mb-2"
-                />
-                
-                {/* Photo Presets for quick selection */}
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-500 font-semibold">Or pick a demo image:</span>
-                  <div className="flex flex-wrap gap-1.5">
+              {/* Multi-Image Upload & Management */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block font-bold text-slate-800 text-sm">Product Photos ({formData.images?.length || 0})</label>
+                    <p className="text-xs text-slate-500">
+                      Upload multiple photos from your device, paste URLs, or pick presets. The 1st photo is used as the cover.
+                    </p>
+                  </div>
+                  {formData.images?.length > 0 && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">
+                      ★ 1st photo is Main Cover
+                    </span>
+                  )}
+                </div>
+
+                {/* Upload Buttons & URL Input */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {/* File Upload Button */}
+                  <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50/50 rounded-xl cursor-pointer transition text-amber-800 font-bold text-xs shadow-xs">
+                    <Upload className="w-4 h-4 text-amber-600" />
+                    <span>Upload from Device (Multiple)</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageFilesUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Add via URL */}
+                  <div className="flex gap-1.5">
+                    <input
+                      type="url"
+                      placeholder="Or paste image URL..."
+                      value={customUrlInput}
+                      onChange={(e) => setCustomUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddUrlImage();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddUrlImage}
+                      disabled={!customUrlInput.trim()}
+                      className="px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition shrink-0"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preset Chips */}
+                <div className="pt-1">
+                  <span className="text-[11px] text-slate-500 font-semibold block mb-1">
+                    Quick demo photos (click to add):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
                     {IMAGE_PRESETS.map((p, idx) => (
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setFormData({ ...formData, image: p.url })}
-                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-medium"
+                        onClick={() => handlePresetAdd(p.url)}
+                        className="px-2 py-1 bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-slate-700 rounded-lg text-[10px] font-medium transition flex items-center gap-1"
                       >
+                        <Plus className="w-3 h-3 text-amber-600" />
                         {p.label}
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Thumbnails preview & reorder list */}
+                {formData.images && formData.images.length > 0 ? (
+                  <div className="pt-2">
+                    <span className="text-[11px] font-bold text-slate-700 block mb-2">
+                      Attached Photos Preview & Order:
+                    </span>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                      {formData.images.map((imgUrl, idx) => {
+                        const isCover = idx === 0;
+                        return (
+                          <div
+                            key={idx}
+                            className={`group relative rounded-xl overflow-hidden border-2 bg-slate-100 aspect-square shadow-xs transition ${
+                              isCover ? 'border-amber-500 ring-2 ring-amber-400/30' : 'border-slate-200 hover:border-slate-400'
+                            }`}
+                          >
+                            <img
+                              src={imgUrl}
+                              alt={`Product upload ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=400&q=80';
+                              }}
+                            />
+
+                            {/* Badge */}
+                            {isCover ? (
+                              <span className="absolute top-1 left-1 bg-amber-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+                                <Star className="w-2.5 h-2.5 fill-white" />
+                                Cover
+                              </span>
+                            ) : (
+                              <span className="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                #{idx + 1}
+                              </span>
+                            )}
+
+                            {/* Action Buttons overlay */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(idx)}
+                                  title="Delete photo"
+                                  className="w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition shadow-sm"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {!isCover && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetCoverImage(idx)}
+                                  title="Set as main cover photo"
+                                  className="w-full py-1 bg-white/95 hover:bg-white text-slate-800 text-[10px] font-bold rounded shadow-xs flex items-center justify-center gap-1 transition"
+                                >
+                                  <Star className="w-3 h-3 text-amber-500" />
+                                  Make Cover
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 border border-dashed border-red-300 rounded-xl bg-red-50/50">
+                    <AlertTriangle className="w-5 h-5 text-red-500 mx-auto mb-1" />
+                    <p className="text-xs font-bold text-red-700">No photos attached yet</p>
+                    <p className="text-[11px] text-red-600">Please upload at least 1 photo for this product.</p>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Category Specific Inputs */}
