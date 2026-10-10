@@ -20,7 +20,10 @@ import {
   Upload,
   Image as ImageIcon,
   X,
-  Star
+  Star,
+  Cloud,
+  Bell,
+  Sparkles
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -38,6 +41,13 @@ const IMAGE_PRESETS = [
   { label: 'Raisins (Kishmish)', url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80' }
 ];
 
+const DEFAULT_LOOSE_VARIANTS = [
+  { weight: '100g', label: '100g Pouch', price: 120, mrp: 160 },
+  { weight: '250g', label: '250g Pouch', price: 265, mrp: 340 },
+  { weight: '500g', label: '500g Pouch', price: 499, mrp: 650, isDefault: true },
+  { weight: '1kg', label: '1 KG Value Pack', price: 960, mrp: 1250 }
+];
+
 export default function AdminDashboard() {
   const {
     products,
@@ -49,7 +59,10 @@ export default function AdminDashboard() {
     setInvoiceOrder,
     resetToDemoData,
     storeInfo,
-    setIsAdminMode
+    setIsAdminMode,
+    isCloudConnected,
+    newOrderAlert,
+    setNewOrderAlert
   } = useStore();
 
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'settings'
@@ -68,6 +81,8 @@ export default function AdminDashboard() {
     price: '',
     mrp: '',
     stock: '',
+    hasVariants: false,
+    variants: DEFAULT_LOOSE_VARIANTS,
     images: [IMAGE_PRESETS[0].url],
     image: IMAGE_PRESETS[0].url,
     description: '',
@@ -95,6 +110,8 @@ export default function AdminDashboard() {
       price: '',
       mrp: '',
       stock: '10',
+      hasVariants: false,
+      variants: DEFAULT_LOOSE_VARIANTS,
       images: [IMAGE_PRESETS[0].url],
       image: IMAGE_PRESETS[0].url,
       description: '',
@@ -122,6 +139,11 @@ export default function AdminDashboard() {
       price: product.price,
       mrp: product.mrp,
       stock: product.stock,
+      hasVariants: Boolean(product.hasVariants),
+      variants:
+        product.variants && product.variants.length > 0
+          ? [...product.variants]
+          : DEFAULT_LOOSE_VARIANTS,
       images: existingImages,
       image: existingImages[0] || product.image,
       description: product.description || '',
@@ -133,6 +155,21 @@ export default function AdminDashboard() {
       badge: product.badge || ''
     });
     setIsProductModalOpen(true);
+  };
+
+  const handleUpdateVariantPrice = (weight, field, value) => {
+    setFormData((prev) => {
+      const updatedVariants = prev.variants.map((v) =>
+        v.weight === weight ? { ...v, [field]: Number(value) } : v
+      );
+      const defaultVar = updatedVariants.find((v) => v.isDefault) || updatedVariants[0];
+      return {
+        ...prev,
+        variants: updatedVariants,
+        price: defaultVar?.price || prev.price,
+        mrp: defaultVar?.mrp || prev.mrp
+      };
+    });
   };
 
   // Multiple image file upload handler (converts files to base64 Data URLs)
@@ -224,6 +261,8 @@ export default function AdminDashboard() {
       price: Number(formData.price),
       mrp: Number(formData.mrp || formData.price),
       stock: Number(formData.stock),
+      hasVariants: Boolean(formData.hasVariants),
+      variants: formData.hasVariants ? formData.variants : [],
       images: finalImages,
       image: finalImages[0],
       description: formData.description,
@@ -274,6 +313,22 @@ export default function AdminDashboard() {
               <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-300">
                 Live Admin Mode
               </span>
+              {/* Cloud Sync Status Badge */}
+              <span
+                className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 border ${
+                  isCloudConnected
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}
+                title={
+                  isCloudConnected
+                    ? 'Supabase Cloud Database connected & syncing real-time across devices'
+                    : 'LocalStorage active. Connect Supabase credentials in .env to enable multi-device cloud sync.'
+                }
+              >
+                <Cloud className={`w-3 h-3 ${isCloudConnected ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span>{isCloudConnected ? 'Cloud Synced' : 'Local Mode'}</span>
+              </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Store Owner Dashboard • Manage Products, Prices, Stock & Local Vizag Orders
@@ -298,6 +353,31 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Real-time Order Popup Banner (if a new order was received from cloud) */}
+        {newOrderAlert && (
+          <div className="bg-emerald-600 text-white rounded-2xl p-4 flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Bell className="w-5 h-5 text-white animate-bounce" />
+              </div>
+              <div>
+                <p className="font-extrabold text-sm">
+                  🔔 New Order Received: #{newOrderAlert.id} (₹{newOrderAlert.total?.toLocaleString('en-IN')})
+                </p>
+                <p className="text-xs text-emerald-100">
+                  Customer: <strong>{newOrderAlert.customer?.name}</strong> • Slot: {newOrderAlert.pickupSlot}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setNewOrderAlert(null)}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold transition"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Executive Metrics Overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -485,11 +565,16 @@ export default function AdminDashboard() {
 
                         {/* Items */}
                         <td className="py-3.5 px-3">
-                          <div className="space-y-0.5 max-w-xs">
+                          <div className="space-y-1 max-w-xs">
                             {order.items.map((it, idx) => (
-                              <p key={idx} className="text-slate-700 text-[11px]">
+                              <div key={idx} className="text-slate-700 text-[11px] leading-tight">
                                 <span className="font-bold text-slate-900">{it.quantity}x</span> {it.title}
-                              </p>
+                                {it.selectedWeight && (
+                                  <span className="ml-1 text-[10px] text-amber-800 font-bold bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                    {it.selectedWeight}
+                                  </span>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </td>
@@ -628,6 +713,18 @@ export default function AdminDashboard() {
                               <p className="text-[11px] text-slate-400 line-clamp-1">
                                 {product.specs?.power || product.specs?.packWeight || 'Vizag Stock'}
                               </p>
+                              {product.hasVariants && product.variants?.length > 0 && (
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
+                                    Multi-Pack ({product.variants.length}):
+                                  </span>
+                                  {product.variants.map((v) => (
+                                    <span key={v.weight} className="text-[9px] font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded">
+                                      {v.weight}: ₹{v.price}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1061,20 +1158,22 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-4 space-y-3">
-                  <h4 className="font-bold text-amber-950 uppercase tracking-wider text-[11px]">
-                    🥜 Dry Fruit Quality & Packaging Specs:
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">Net Weight Variant</label>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-amber-950 uppercase tracking-wider text-[11px]">
+                      🥜 Dry Fruit Quality & Packaging Specs:
+                    </h4>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-amber-900">
                       <input
-                        type="text"
-                        placeholder="e.g. 500 Grams Resealable Pouch"
-                        value={formData.packWeight}
-                        onChange={(e) => setFormData({ ...formData, packWeight: e.target.value })}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg"
+                        type="checkbox"
+                        checked={formData.hasVariants}
+                        onChange={(e) => setFormData({ ...formData, hasVariants: e.target.checked })}
+                        className="rounded accent-amber-600 w-4 h-4 cursor-pointer"
                       />
-                    </div>
+                      <span>Enable Weight Variants (100g/250g/500g/1kg)</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-slate-700 font-bold mb-1">Quality Grade</label>
                       <input
@@ -1082,10 +1181,74 @@ export default function AdminDashboard() {
                         placeholder="e.g. Grade W-240 Jumbo Whole"
                         value={formData.grade}
                         onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg"
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Default Pack Weight Note</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 500g Resealable Pouch"
+                        value={formData.packWeight}
+                        onChange={(e) => setFormData({ ...formData, packWeight: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                       />
                     </div>
                   </div>
+
+                  {/* Weight Variant Price Matrix */}
+                  {formData.hasVariants && (
+                    <div className="pt-2 border-t border-amber-200/60 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-950">
+                          Configure Pack Variant Prices:
+                        </span>
+                        <span className="text-[10px] text-amber-700 font-medium">
+                          500g is used as master display price
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {formData.variants?.map((v) => (
+                          <div
+                            key={v.weight}
+                            className={`p-2.5 rounded-xl border bg-white ${
+                              v.isDefault ? 'border-amber-400 ring-1 ring-amber-400/30' : 'border-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-extrabold text-slate-800">{v.weight}</span>
+                              {v.isDefault && (
+                                <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1 rounded">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <div>
+                                <label className="text-[9px] text-slate-500 font-bold block">Selling Price (₹)</label>
+                                <input
+                                  type="number"
+                                  value={v.price}
+                                  onChange={(e) => handleUpdateVariantPrice(v.weight, 'price', e.target.value)}
+                                  className="w-full px-1.5 py-1 text-xs font-bold border border-slate-200 rounded bg-slate-50 focus:bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-slate-400 font-medium block">MRP (₹)</label>
+                                <input
+                                  type="number"
+                                  value={v.mrp}
+                                  onChange={(e) => handleUpdateVariantPrice(v.weight, 'mrp', e.target.value)}
+                                  className="w-full px-1.5 py-1 text-[11px] border border-slate-200 rounded bg-slate-50 focus:bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

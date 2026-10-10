@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Search, ShieldCheck, MapPin, Phone, ArrowLeft, Store, Sparkles } from 'lucide-react';
+import { ShoppingBag, Search, ShieldCheck, MapPin, Phone, ArrowLeft, Store, Sparkles, User, Package } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function Navbar() {
@@ -11,7 +11,9 @@ export default function Navbar() {
     setIsAdminMode,
     searchQuery,
     setSearchQuery,
-    storeInfo
+    storeInfo,
+    currentUser,
+    setIsAuthModalOpen
   } = useStore();
 
   return (
@@ -118,6 +120,20 @@ export default function Navbar() {
             >
               <ShieldCheck className="w-4 h-4 text-amber-600" />
               <span className="hidden sm:inline">Owner</span> Admin
+            </button>
+          )}
+
+          {/* Customer Account & Order Tracker (Storefront only) */}
+          {!isAdminMode && (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors shadow-2xs"
+              title="Track pickup orders & view tax invoices"
+            >
+              <User className="w-4 h-4 text-amber-600" />
+              <span className="hidden sm:inline">
+                {currentUser ? currentUser.name.split(' ')[0] : 'My Orders'}
+              </span>
             </button>
           )}
 

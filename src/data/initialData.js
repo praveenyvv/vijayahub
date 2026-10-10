@@ -114,25 +114,32 @@ export const INITIAL_PRODUCTS = [
     badge: 'Everyday Essential'
   },
 
-  // --- FRESH DRY FRUITS ---
+  // --- FRESH DRY FRUITS (LOOSE / PACKED BY WEIGHT) ---
   {
     id: 'prod-df-1',
-    title: 'Premium W-240 Jumbo Cashews (Kaju) - 500g',
+    title: 'Premium W-240 Jumbo Cashews (Kaju)',
     category: 'Fresh Dry Fruits',
     price: 499,
     mrp: 650,
     stock: 28,
     rating: 4.9,
     reviewsCount: 88,
+    hasVariants: true,
+    variants: [
+      { weight: '100g', label: '100g Pouch', price: 120, mrp: 160 },
+      { weight: '250g', label: '250g Pouch', price: 265, mrp: 340 },
+      { weight: '500g', label: '500g Pouch', price: 499, mrp: 650, isDefault: true },
+      { weight: '1kg', label: '1 KG Value Pack', price: 960, mrp: 1250 }
+    ],
     image: 'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=800&q=80',
     images: [
       'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1558818498-28c1e002b655?auto=format&fit=crop&w=800&q=80'
     ],
-    description: 'Handpicked, whole white jumbo W-240 kernel cashews. Crispy, naturally sweet, unroasted, and nitrogen-vacuum packed to preserve freshness.',
+    description: 'Handpicked, whole white jumbo W-240 kernel cashews. Crispy, naturally sweet, unroasted, and nitrogen-vacuum packed in food-grade pouches to preserve freshness.',
     specs: {
-      packWeight: '500 Grams Pouch',
+      packWeight: '500g (Default Variant)',
       grade: 'Grade W-240 Whole Jumbo',
       shelfLife: '9 Months from Packing',
       fssaiLicense: '10123000019842',
@@ -142,13 +149,20 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-df-2',
-    title: 'California Select Crunchy Almonds (Badam) - 500g',
+    title: 'California Select Crunchy Almonds (Badam)',
     category: 'Fresh Dry Fruits',
     price: 449,
     mrp: 599,
     stock: 35,
     rating: 4.8,
     reviewsCount: 76,
+    hasVariants: true,
+    variants: [
+      { weight: '100g', label: '100g Pouch', price: 109, mrp: 150 },
+      { weight: '250g', label: '250g Pouch', price: 240, mrp: 310 },
+      { weight: '500g', label: '500g Pouch', price: 449, mrp: 599, isDefault: true },
+      { weight: '1kg', label: '1 KG Value Pack', price: 860, mrp: 1150 }
+    ],
     image: 'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=800&q=80',
     images: [
       'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=800&q=80',
@@ -156,7 +170,7 @@ export const INITIAL_PRODUCTS = [
     ],
     description: '100% genuine California Nonpareil almonds. Rich in plant protein, Vitamin E, and antioxidants. Perfectly crunchy with zero bitter taste.',
     specs: {
-      packWeight: '500 Grams Airtight Standup Pouch',
+      packWeight: '500g (Default Variant)',
       grade: 'Extra No. 1 California Nonpareil',
       shelfLife: '12 Months',
       fssaiLicense: '10123000019842',
@@ -166,17 +180,24 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-df-3',
-    title: 'Kashmiri Snow White Walnut Kernels (Akhrot) - 250g',
+    title: 'Kashmiri Snow White Walnut Kernels (Akhrot)',
     category: 'Fresh Dry Fruits',
     price: 380,
     mrp: 490,
     stock: 15,
     rating: 4.9,
     reviewsCount: 34,
+    hasVariants: true,
+    variants: [
+      { weight: '100g', label: '100g Pouch', price: 165, mrp: 220 },
+      { weight: '250g', label: '250g Pouch', price: 380, mrp: 490, isDefault: true },
+      { weight: '500g', label: '500g Pouch', price: 720, mrp: 950 },
+      { weight: '1kg', label: '1 KG Value Pack', price: 1390, mrp: 1850 }
+    ],
     image: 'https://images.unsplash.com/photo-1558818498-28c1e002b655?auto=format&fit=crop&w=800&q=80',
     description: 'Pure Kashmiri walnut kernels (halves and quarters) with rich natural oils. High in plant-based Omega-3 fatty acids for brain & heart health.',
     specs: {
-      packWeight: '250 Grams Resealable Zip Lock',
+      packWeight: '250g (Default Variant)',
       grade: 'Snow White Halves (Grade A)',
       shelfLife: '6 Months (Store refrigerated)',
       fssaiLicense: '10123000019842',
@@ -186,17 +207,23 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-df-4',
-    title: 'Afghani Jumbo Dried Figs (Anjeer) - 500g',
+    title: 'Afghani Jumbo Dried Figs (Anjeer)',
     category: 'Fresh Dry Fruits',
     price: 590,
     mrp: 750,
     stock: 12,
     rating: 4.7,
     reviewsCount: 42,
+    hasVariants: true,
+    variants: [
+      { weight: '250g', label: '250g Pouch', price: 310, mrp: 399 },
+      { weight: '500g', label: '500g Pouch', price: 590, mrp: 750, isDefault: true },
+      { weight: '1kg', label: '1 KG Value Pack', price: 1120, mrp: 1450 }
+    ],
     image: 'https://images.unsplash.com/photo-1563861826100-9cb868fdbe1c?auto=format&fit=crop&w=800&q=80',
     description: 'Plump, naturally sun-dried Afghani garland figs. Soft and naturally sweet with zero added sugar or preservatives. High in dietary fiber and calcium.',
     specs: {
-      packWeight: '500 Grams Pack',
+      packWeight: '500g (Default Variant)',
       grade: 'Afghani Jumbo Garland Cut',
       shelfLife: '8 Months',
       fssaiLicense: '10123000019842',
@@ -206,17 +233,24 @@ export const INITIAL_PRODUCTS = [
   },
   {
     id: 'prod-df-5',
-    title: 'Long Golden Kishmish (Green Raisins) - 500g',
+    title: 'Long Golden Kishmish (Green Raisins)',
     category: 'Fresh Dry Fruits',
     price: 199,
     mrp: 280,
     stock: 22,
     rating: 4.6,
     reviewsCount: 39,
+    hasVariants: true,
+    variants: [
+      { weight: '100g', label: '100g Pouch', price: 50, mrp: 70 },
+      { weight: '250g', label: '250g Pouch', price: 110, mrp: 150 },
+      { weight: '500g', label: '500g Pouch', price: 199, mrp: 280, isDefault: true },
+      { weight: '1kg', label: '1 KG Value Pack', price: 380, mrp: 520 }
+    ],
     image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
     description: 'Selected long seedless green raisins sun-dried in clean hygienic chambers. Soft, chewy, rich in iron, and perfect for sweet dishes.',
     specs: {
-      packWeight: '500 Grams Pouch',
+      packWeight: '500g (Default Variant)',
       grade: 'Nashik Green Long Seedless',
       shelfLife: '9 Months',
       fssaiLicense: '10123000019842',

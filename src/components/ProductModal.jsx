@@ -19,9 +19,23 @@ export default function ProductModal() {
   const [qty, setQty] = useState(1);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
+  const defaultVariant =
+    selectedProduct?.variants && selectedProduct.variants.length > 0
+      ? selectedProduct.variants.find((v) => v.isDefault) || selectedProduct.variants[0]
+      : null;
+
+  const [selectedVariant, setSelectedVariant] = useState(defaultVariant);
+
   React.useEffect(() => {
     setActiveImageIdx(0);
     setQty(1);
+    if (selectedProduct?.variants && selectedProduct.variants.length > 0) {
+      setSelectedVariant(
+        selectedProduct.variants.find((v) => v.isDefault) || selectedProduct.variants[0]
+      );
+    } else {
+      setSelectedVariant(null);
+    }
   }, [selectedProduct?.id]);
 
   if (!selectedProduct) return null;
@@ -34,7 +48,9 @@ export default function ProductModal() {
   const currentImage = productImages[activeImageIdx] || productImages[0];
 
   const isOutOfStock = selectedProduct.stock <= 0;
-  const discountPercent = Math.round(((selectedProduct.mrp - selectedProduct.price) / selectedProduct.mrp) * 100);
+  const displayPrice = selectedVariant ? selectedVariant.price : selectedProduct.price;
+  const displayMrp = selectedVariant ? (selectedVariant.mrp || selectedProduct.mrp) : selectedProduct.mrp;
+  const discountPercent = Math.round(((displayMrp - displayPrice) / displayMrp) * 100);
 
   const handlePrevImage = (e) => {
     e.stopPropagation();
@@ -47,7 +63,7 @@ export default function ProductModal() {
   };
 
   const handleAddAndOpenCart = () => {
-    addToCart(selectedProduct, qty);
+    addToCart(selectedProduct, qty, selectedVariant);
     setSelectedProduct(null);
     setIsCartOpen(true);
   };
@@ -154,21 +170,83 @@ export default function ProductModal() {
               </h2>
 
               {/* Price */}
-              <div className="flex items-baseline gap-3 mb-4">
+              <div className="flex items-baseline gap-3 mb-3">
                 <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                  ₹{selectedProduct.price.toLocaleString('en-IN')}
+                  ₹{displayPrice.toLocaleString('en-IN')}
                 </span>
-                {selectedProduct.mrp > selectedProduct.price && (
+                {displayMrp > displayPrice && (
                   <>
                     <span className="text-sm text-slate-400 line-through">
-                      ₹{selectedProduct.mrp.toLocaleString('en-IN')}
+                      ₹{displayMrp.toLocaleString('en-IN')}
                     </span>
                     <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded">
                       Save {discountPercent}%
                     </span>
                   </>
                 )}
+                {selectedVariant && (
+                  <span className="text-xs text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
+                    {selectedVariant.label || selectedVariant.weight}
+                  </span>
+                )}
               </div>
+
+              {/* Multi-Weight Pack Size Selector (Blinkit / Zepto Style) */}
+              {selectedProduct.hasVariants && selectedProduct.variants?.length > 0 && (
+                <div className="mb-4 bg-amber-50/50 border border-amber-200/80 rounded-2xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                      Select Pack Quantity:
+                    </span>
+                    <span className="text-[11px] text-amber-700 font-medium">
+                      Freshly packed in Vizag Hub
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {selectedProduct.variants.map((v) => {
+                      const isSelected = selectedVariant?.weight === v.weight;
+                      const varDiscount = Math.round(((v.mrp - v.price) / v.mrp) * 100);
+                      return (
+                        <button
+                          key={v.weight}
+                          type="button"
+                          onClick={() => setSelectedVariant(v)}
+                          className={`p-2 rounded-xl text-left transition border ${
+                            isSelected
+                              ? 'border-amber-600 bg-amber-600 text-white shadow-xs ring-2 ring-amber-400/30'
+                              : 'border-slate-200 bg-white hover:border-amber-400 text-slate-800 hover:bg-amber-50/30'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold">{v.weight}</span>
+                            {varDiscount > 0 && (
+                              <span
+                                className={`text-[9px] font-extrabold px-1 rounded ${
+                                  isSelected ? 'bg-amber-700 text-white' : 'bg-emerald-100 text-emerald-800'
+                                }`}
+                              >
+                                {varDiscount}% OFF
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-baseline gap-1">
+                            <span className="text-sm font-extrabold">₹{v.price}</span>
+                            {v.mrp > v.price && (
+                              <span
+                                className={`text-[10px] line-through ${
+                                  isSelected ? 'text-amber-200' : 'text-slate-400'
+                                }`}
+                              >
+                                ₹{v.mrp}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4">
@@ -277,7 +355,7 @@ export default function ProductModal() {
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    addToCart(selectedProduct, qty);
+                    addToCart(selectedProduct, qty, selectedVariant);
                     setSelectedProduct(null);
                   }}
                   disabled={isOutOfStock}

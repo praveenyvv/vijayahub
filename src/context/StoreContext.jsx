@@ -1,11 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { INITIAL_PRODUCTS, INITIAL_ORDERS, VIZAG_STORE_INFO } from '../data/initialData';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 const StoreContext = createContext();
 
-const PRODUCTS_STORAGE_KEY = 'vijayahub_products_v1';
+const PRODUCTS_STORAGE_KEY = 'vijayahub_products_v2';
 const ORDERS_STORAGE_KEY = 'vijayahub_orders_v1';
-const CART_STORAGE_KEY = 'vijayahub_cart_v1';
+const CART_STORAGE_KEY = 'vijayahub_cart_v2';
+const USER_STORAGE_KEY = 'vijayahub_user_v1';
 
 export function StoreProvider({ children }) {
   // 1. Products state (persisted)
@@ -38,15 +40,28 @@ export function StoreProvider({ children }) {
     }
   });
 
-  // 4. UI Modals and Navigation states
+  // 4. User profile state (persisted)
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem(USER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // 5. UI Modals and Navigation states
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isCloudConnected, setIsCloudConnected] = useState(isSupabaseConfigured);
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
 
   // Sync to localStorage
   useEffect(() => {
@@ -61,10 +76,152 @@ export function StoreProvider({ children }) {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
   }, [cart]);
 
-  // --- Cart Actions ---
-  const addToCart = (product, quantity = 1) => {
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    }
+  }, [currentUser]);
+
+  // --- Real-Time Supabase Cloud Synchronization ---
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    // 1. Initial fetch of products and orders from Supabase
+    const fetchCloudData = async () => {
+      try {
+        const { data: cloudProducts, error: pError } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!pError && cloudProducts && cloudProducts.length > 0) {
+          // Normalize snake_case columns if present
+          const formattedProducts = cloudProducts.map((p) => ({
+            ...p,
+            hasVariants: p.has_variants ?? p.hasVariants,
+            reviewsCount: p.reviews_count ?? p.reviewsCount
+          }));
+          setProducts(formattedProducts);
+        }
+
+        const { data: cloudOrders, error: oError } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!oError && cloudOrders && cloudOrders.length > 0) {
+          const formattedOrders = cloudOrders.map((o) => ({
+            ...o,
+            itemSubtotal: o.item_subtotal ?? o.itemSubtotal,
+            deliveryFee: o.delivery_fee ?? o.deliveryFee,
+            pickupSlot: o.pickup_slot ?? o.pickupSlot,
+            fulfillmentType: o.fulfillment_type ?? o.fulfillmentType,
+            paymentStatus: o.payment_status ?? o.paymentStatus,
+            paymentMethod: o.payment_method ?? o.paymentMethod,
+            upiRefNumber: o.upi_ref_number ?? o.upiRefNumber,
+            expiresAt: o.expires_at ?? o.expiresAt,
+            cancellationReason: o.cancellation_reason ?? o.cancellationReason,
+            cancelledAt: o.cancelled_at ?? o.cancelledAt
+          }));
+          setOrders(formattedOrders);
+        }
+
+        setIsCloudConnected(true);
+      } catch (err) {
+        console.warn('Supabase initial fetch note:', err);
+      }
+    };
+
+    fetchCloudData();
+
+    // 2. Real-time Subscription to Live Orders & Products
+    const ordersChannel = supabase
+      .channel('realtime:orders')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          const newOrder = payload.new;
+          const formatted = {
+            ...newOrder,
+            itemSubtotal: newOrder.item_subtotal ?? newOrder.itemSubtotal,
+            deliveryFee: newOrder.delivery_fee ?? newOrder.deliveryFee,
+            pickupSlot: newOrder.pickup_slot ?? newOrder.pickupSlot,
+            fulfillmentType: newOrder.fulfillment_type ?? newOrder.fulfillmentType,
+            paymentStatus: newOrder.payment_status ?? newOrder.paymentStatus,
+            paymentMethod: newOrder.payment_method ?? newOrder.paymentMethod,
+            upiRefNumber: newOrder.upi_ref_number ?? newOrder.upiRefNumber,
+            expiresAt: newOrder.expires_at ?? newOrder.expiresAt
+          };
+
+          setOrders((prev) => [formatted, ...prev.filter((o) => o.id !== formatted.id)]);
+          setNewOrderAlert(formatted);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          const updated = payload.new;
+          setOrders((prev) =>
+            prev.map((o) =>
+              o.id === updated.id
+                ? {
+                    ...o,
+                    ...updated,
+                    status: updated.status,
+                    paymentStatus: updated.payment_status ?? updated.paymentStatus
+                  }
+                : o
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    const productsChannel = supabase
+      .channel('realtime:products')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setProducts((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setProducts((prev) =>
+              prev.map((p) => (p.id === payload.new.id ? { ...p, ...payload.new } : p))
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(productsChannel);
+    };
+  }, []);
+
+  // --- Cart Actions (Supports Multi-Weight Variants) ---
+  const addToCart = (product, quantity = 1, selectedVariant = null) => {
+    // If no variant passed but product has variants, pick default or first variant
+    const variant =
+      selectedVariant ||
+      (product.variants && product.variants.length > 0
+        ? product.variants.find((v) => v.isDefault) || product.variants[0]
+        : null);
+
+    const cartItemId = variant ? `${product.id}-${variant.weight}` : product.id;
+    const itemPrice = variant ? variant.price : product.price;
+    const itemMrp = variant ? (variant.mrp || product.mrp) : product.mrp;
+    const itemWeight = variant ? (variant.label || variant.weight) : (product.specs?.packWeight || null);
+
     setCart((prevCart) => {
-      const existing = prevCart.find((item) => item.id === product.id);
+      const existing = prevCart.find((item) => (item.cartItemId || item.id) === cartItemId);
       if (existing) {
         const newQty = existing.quantity + quantity;
         if (newQty > product.stock) {
@@ -72,34 +229,48 @@ export function StoreProvider({ children }) {
           return prevCart;
         }
         return prevCart.map((item) =>
-          item.id === product.id ? { ...item, quantity: newQty } : item
+          (item.cartItemId || item.id) === cartItemId ? { ...item, quantity: newQty } : item
         );
       } else {
         if (quantity > product.stock) {
           alert(`Only ${product.stock} units available in stock.`);
           return prevCart;
         }
-        return [...prevCart, { ...product, quantity }];
+        return [
+          ...prevCart,
+          {
+            ...product,
+            cartItemId,
+            selectedVariant: variant,
+            selectedWeight: itemWeight,
+            price: itemPrice,
+            mrp: itemMrp,
+            quantity
+          }
+        ];
       }
     });
   };
 
-  const removeFromCart = (productId) => {
-    setCart((prev) => prev.filter((item) => item.id !== productId));
+  const removeFromCart = (cartItemId) => {
+    setCart((prev) => prev.filter((item) => (item.cartItemId || item.id) !== cartItemId));
   };
 
-  const updateCartQuantity = (productId, newQuantity) => {
+  const updateCartQuantity = (cartItemId, newQuantity) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(cartItemId);
       return;
     }
-    const product = products.find((p) => p.id === productId);
+    const item = cart.find((i) => (i.cartItemId || i.id) === cartItemId);
+    const product = item ? products.find((p) => p.id === item.id) : null;
     if (product && newQuantity > product.stock) {
       alert(`Cannot add more than ${product.stock} items (stock limit reached).`);
       return;
     }
     setCart((prev) =>
-      prev.map((item) => (item.id === productId ? { ...item, quantity: newQuantity } : item))
+      prev.map((item) =>
+        (item.cartItemId || item.id) === cartItemId ? { ...item, quantity: newQuantity } : item
+      )
     );
   };
 
@@ -163,7 +334,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   // --- Order & Inventory Actions ---
-  const placeOrder = (orderData) => {
+  const placeOrder = async (orderData) => {
     const newOrderId = `VH-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
@@ -181,9 +352,16 @@ export function StoreProvider({ children }) {
     // 1. Deduct stock from products automatically upon order placement
     setProducts((prevProducts) =>
       prevProducts.map((p) => {
-        const purchasedItem = orderData.items.find((item) => item.id === p.id);
-        if (purchasedItem) {
-          const remainingStock = Math.max(0, p.stock - purchasedItem.quantity);
+        const totalPurchased = orderData.items
+          ?.filter((item) => item.id === p.id)
+          .reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
+
+        if (totalPurchased > 0) {
+          const remainingStock = Math.max(0, p.stock - totalPurchased);
+          // If Supabase is connected, update stock in cloud
+          if (isSupabaseConfigured && supabase) {
+            supabase.from('products').update({ stock: remainingStock }).eq('id', p.id).then();
+          }
           return { ...p, stock: remainingStock };
         }
         return p;
@@ -191,12 +369,38 @@ export function StoreProvider({ children }) {
     );
 
     // 2. Add to orders list at the top
-    setOrders((prev) => [fullOrder, ...prev]);
+    setOrders((prev) => [fullOrder, ...prev.filter((o) => o.id !== fullOrder.id)]);
 
     // 3. Clear cart and set completed order for feedback
     clearCart();
     setIsCheckoutOpen(false);
     setCompletedOrder(fullOrder);
+
+    // 4. Save order to Supabase cloud if connected
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').insert([
+          {
+            id: fullOrder.id,
+            customer: fullOrder.customer,
+            items: fullOrder.items,
+            item_subtotal: fullOrder.itemSubtotal,
+            delivery_fee: fullOrder.deliveryFee || 0,
+            total: fullOrder.total,
+            pickup_slot: fullOrder.pickupSlot,
+            fulfillment_type: fullOrder.fulfillmentType,
+            status: fullOrder.status,
+            payment_status: fullOrder.paymentStatus,
+            payment_method: fullOrder.paymentMethod,
+            upi_ref_number: fullOrder.upiRefNumber,
+            notes: fullOrder.notes,
+            expires_at: fullOrder.expiresAt
+          }
+        ]);
+      } catch (err) {
+        console.warn('Supabase order insert note:', err);
+      }
+    }
 
     return fullOrder;
   };
@@ -209,9 +413,16 @@ export function StoreProvider({ children }) {
     // Restore stock
     setProducts((prevProducts) =>
       prevProducts.map((p) => {
-        const itemToReturn = orderToCancel.items?.find((it) => it.id === p.id);
-        if (itemToReturn) {
-          return { ...p, stock: p.stock + itemToReturn.quantity };
+        const totalReturned = orderToCancel.items
+          ?.filter((it) => it.id === p.id)
+          .reduce((sum, it) => sum + (it.quantity || 1), 0) || 0;
+
+        if (totalReturned > 0) {
+          const newStock = p.stock + totalReturned;
+          if (isSupabaseConfigured && supabase) {
+            supabase.from('products').update({ stock: newStock }).eq('id', p.id).then();
+          }
+          return { ...p, stock: newStock };
         }
         return p;
       })
@@ -231,6 +442,18 @@ export function StoreProvider({ children }) {
       )
     );
 
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('orders')
+        .update({
+          status: 'Cancelled',
+          cancellation_reason: reason,
+          cancelled_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .then();
+    }
+
     if (completedOrder && completedOrder.id === orderId) {
       setCompletedOrder((prev) => ({
         ...prev,
@@ -249,13 +472,18 @@ export function StoreProvider({ children }) {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('orders').update({ status: newStatus }).eq('id', orderId).then();
+    }
+
     if (completedOrder && completedOrder.id === orderId) {
       setCompletedOrder((prev) => ({ ...prev, status: newStatus }));
     }
   };
 
   // --- Admin Product Actions ---
-  const addProduct = (newProduct) => {
+  const addProduct = async (newProduct) => {
     const id = `prod-custom-${Date.now()}`;
     const productWithDefaults = {
       id,
@@ -265,18 +493,57 @@ export function StoreProvider({ children }) {
       specs: {},
       ...newProduct
     };
+
     setProducts((prev) => [productWithDefaults, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('products').insert([
+          {
+            id: productWithDefaults.id,
+            title: productWithDefaults.title,
+            category: productWithDefaults.category,
+            price: productWithDefaults.price,
+            mrp: productWithDefaults.mrp,
+            stock: productWithDefaults.stock,
+            has_variants: productWithDefaults.hasVariants,
+            variants: productWithDefaults.variants,
+            image: productWithDefaults.image,
+            images: productWithDefaults.images,
+            description: productWithDefaults.description,
+            specs: productWithDefaults.specs,
+            badge: productWithDefaults.badge
+          }
+        ]);
+      } catch (err) {
+        console.warn('Supabase product insert note:', err);
+      }
+    }
   };
 
   const updateProduct = (id, updatedFields) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p))
     );
+
+    if (isSupabaseConfigured && supabase) {
+      const dbPayload = { ...updatedFields };
+      if ('hasVariants' in updatedFields) dbPayload.has_variants = updatedFields.hasVariants;
+      if ('reviewsCount' in updatedFields) dbPayload.reviews_count = updatedFields.reviewsCount;
+      delete dbPayload.hasVariants;
+      delete dbPayload.reviewsCount;
+
+      supabase.from('products').update(dbPayload).eq('id', id).then();
+    }
   };
 
   const deleteProduct = (id) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setCart((prev) => prev.filter((item) => item.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('products').delete().eq('id', id).then();
+    }
   };
 
   const resetToDemoData = () => {
@@ -313,6 +580,10 @@ export function StoreProvider({ children }) {
         setSelectedProduct,
         isCheckoutOpen,
         setIsCheckoutOpen,
+        currentUser,
+        setCurrentUser,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
         completedOrder,
         setCompletedOrder,
         invoiceOrder,
@@ -321,6 +592,9 @@ export function StoreProvider({ children }) {
         setSearchQuery,
         selectedCategory,
         setSelectedCategory,
+        isCloudConnected,
+        newOrderAlert,
+        setNewOrderAlert,
         // Action methods
         addToCart,
         removeFromCart,

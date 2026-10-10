@@ -36,16 +36,26 @@ export default function CheckoutModal() {
     cart,
     cartSubtotal,
     storeInfo,
-    placeOrder
+    placeOrder,
+    currentUser,
+    setCurrentUser
   } = useStore();
 
   // Multi-step checkout: 'details' -> 'payment' -> finish
   const [step, setStep] = useState('details'); // 'details' or 'payment'
 
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerName, setCustomerName] = useState(currentUser?.name || '');
+  const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
+  const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
   const [pickupSlot, setPickupSlot] = useState(PICKUP_SLOTS[0].label);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      if (currentUser.name) setCustomerName(currentUser.name);
+      if (currentUser.phone) setCustomerPhone(currentUser.phone);
+      if (currentUser.email) setCustomerEmail(currentUser.email);
+    }
+  }, [currentUser, isCheckoutOpen]);
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState('upi_qr'); // 'upi_qr' or 'cod'
@@ -140,8 +150,10 @@ export default function CheckoutModal() {
         pickupSlot: pickupSlot,
         items: cart.map((item) => ({
           id: item.id,
+          cartItemId: item.cartItemId || item.id,
           title: item.title,
           price: item.price,
+          selectedWeight: item.selectedWeight || null,
           quantity: item.quantity
         })),
         itemSubtotal: cartSubtotal,
@@ -152,6 +164,16 @@ export default function CheckoutModal() {
         upiRefNumber: upiRefNumber || 'Counter Payment',
         notes: `Selected Slot: ${pickupSlot}. Strictly 24-hr pickup window.`
       });
+
+      // Auto-set currentUser so this phone session stays linked to their orders
+      if (!currentUser && customerPhone) {
+        setCurrentUser({
+          phone: customerPhone,
+          name: customerName,
+          email: customerEmail || `${customerPhone}@customer.vijayahub.com`,
+          joinedAt: new Date().toISOString()
+        });
+      }
 
       // Reset step
       setStep('details');

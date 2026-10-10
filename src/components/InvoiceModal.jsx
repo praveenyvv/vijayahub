@@ -134,7 +134,12 @@ export default function InvoiceModal() {
                 <tr key={index}>
                   <td className="py-2 text-slate-400 font-mono text-[11px]">{index + 1}</td>
                   <td className="py-2 font-medium text-slate-900 pr-2">
-                    {item.title}
+                    <div>{item.title}</div>
+                    {item.selectedWeight && (
+                      <span className="inline-block text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 mt-0.5">
+                        Pack: {item.selectedWeight}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 text-center font-mono text-[10px] text-slate-500">
                     {item.title.toLowerCase().includes('grinder') || item.title.toLowerCase().includes('fryer') || item.title.toLowerCase().includes('cooktop') ? '8509' : '0802'}

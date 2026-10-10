@@ -10,6 +10,7 @@ import OrderSuccessModal from './components/OrderSuccessModal';
 import InvoiceModal from './components/InvoiceModal';
 import AdminDashboard from './components/AdminDashboard';
 import PolicyModal from './components/PolicyModal';
+import UserAccountModal from './components/UserAccountModal';
 import Footer from './components/Footer';
 import { Sparkles, Store, Clock, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight } from 'lucide-react';
 
@@ -207,6 +208,7 @@ function StorefrontContent() {
       <CheckoutModal />
       <OrderSuccessModal />
       <InvoiceModal />
+      <UserAccountModal />
       <PolicyModal policyType={activePolicy} onClose={() => setActivePolicy(null)} />
     </div>
   );

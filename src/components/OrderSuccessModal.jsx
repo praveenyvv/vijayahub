@@ -211,9 +211,16 @@ export default function OrderSuccessModal() {
             </h4>
             {completedOrder.items.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center text-slate-700">
-                <span className="font-medium">
-                  {item.quantity}x {item.title}
-                </span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-slate-800">
+                    {item.quantity}x {item.title}
+                  </span>
+                  {item.selectedWeight && (
+                    <span className="text-[10px] text-amber-800 font-bold">
+                      Pack: {item.selectedWeight}
+                    </span>
+                  )}
+                </div>
                 <span className="font-bold text-slate-900">
                   ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                 </span>

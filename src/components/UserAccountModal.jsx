@@ -1,0 +1,373 @@
+import React, { useState } from 'react';
+import {
+  X,
+  User,
+  ShoppingBag,
+  Clock,
+  CheckCircle2,
+  Package,
+  CalendarCheck,
+  FileText,
+  AlertTriangle,
+  LogOut,
+  ChevronRight,
+  Store,
+  MapPin,
+  Sparkles
+} from 'lucide-react';
+import { useStore } from '../context/StoreContext';
+
+export default function UserAccountModal() {
+  const {
+    currentUser,
+    setCurrentUser,
+    isAuthModalOpen,
+    setIsAuthModalOpen,
+    orders,
+    setInvoiceOrder,
+    storeInfo
+  } = useStore();
+
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'profile', 'login'
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginName, setLoginName] = useState('');
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  if (!isAuthModalOpen) return null;
+
+  // Filter orders matching the logged in user phone or current guest session
+  const userOrders = currentUser
+    ? orders.filter(
+        (o) =>
+          o.customer?.phone === currentUser.phone ||
+          o.customer?.email === currentUser.email
+      )
+    : [];
+
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    if (!loginPhone.trim()) return;
+
+    const userObj = {
+      phone: loginPhone.trim(),
+      name: loginName.trim() || `Customer ${loginPhone.slice(-4)}`,
+      email: `${loginPhone.trim()}@customer.vijayahub.com`,
+      joinedAt: new Date().toISOString()
+    };
+
+    setCurrentUser(userObj);
+    setActiveTab('orders');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setLoginPhone('');
+    setLoginName('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="relative bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base sm:text-lg text-white">
+                {currentUser ? `Hi, ${currentUser.name}` : 'Customer Account & Orders'}
+              </h3>
+              <p className="text-xs text-slate-300">
+                {currentUser
+                  ? `Phone: ${currentUser.phone} • Dwaraka Nagar Store Pickup`
+                  : 'Log in to track your 24-hr pickup orders & tax invoices'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsAuthModalOpen(false)}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Modal Navigation Tabs (If logged in) */}
+        {currentUser && (
+          <div className="flex border-b border-slate-200 bg-slate-50 px-5 pt-2 gap-4 text-xs font-bold">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition ${
+                activeTab === 'orders'
+                  ? 'border-amber-600 text-amber-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              <span>My Orders ({userOrders.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition ${
+                activeTab === 'profile'
+                  ? 'border-amber-600 text-amber-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              <span>Profile & Hub Info</span>
+            </button>
+          </div>
+        )}
+
+        {/* Body Content */}
+        <div className="p-5 sm:p-6 max-h-[75vh] overflow-y-auto space-y-4">
+          {/* NOT LOGGED IN: SHOW INSTANT SIGN IN FORM */}
+          {!currentUser ? (
+            <div className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-sm mb-0.5">Quick Sign In (No password needed!)</p>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    Enter your mobile number to view all your past pickup orders, check 24-hr expiry countdowns, and download GST tax invoices.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleLoginSubmit} className="space-y-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Your WhatsApp Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. 9848012345"
+                    value={loginPhone}
+                    onChange={(e) => setLoginPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm font-semibold focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Your Full Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ramesh Varma"
+                    value={loginName}
+                    onChange={(e) => setLoginName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm focus:outline-hidden"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-sm shadow-md shadow-amber-600/30 transition-all"
+                >
+                  Sign In & View My Orders
+                </button>
+              </form>
+            </div>
+          ) : activeTab === 'orders' ? (
+            /* TAB 1: ORDER TRACKER (BLINKIT / ZEPTO STYLE) */
+            <div className="space-y-4">
+              {userOrders.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 p-6">
+                  <Package className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <h4 className="font-bold text-slate-800 text-sm mb-1">No orders found for this number</h4>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto mb-4">
+                    Place an order on the storefront and select a 24-hr pickup slot at Dwaraka Nagar hub.
+                  </p>
+                  <button
+                    onClick={() => setIsAuthModalOpen(false)}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs"
+                  >
+                    Start Shopping
+                  </button>
+                </div>
+              ) : (
+                userOrders.map((order) => {
+                  const isCancelled = order.status === 'Cancelled';
+                  const isCompleted = order.status === 'Completed';
+
+                  // Stepper statuses
+                  const steps = ['Placed', 'Packed', 'Ready for Pickup', 'Completed'];
+                  const currentStepIdx = isCancelled
+                    ? -1
+                    : steps.indexOf(order.status) !== -1
+                    ? steps.indexOf(order.status)
+                    : 0;
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="border border-slate-200 rounded-2xl bg-white p-4 sm:p-5 shadow-2xs space-y-3.5 hover:border-slate-300 transition"
+                    >
+                      {/* Top Order Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-sm text-slate-900 font-mono">
+                              #{order.id}
+                            </span>
+                            <span
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                isCancelled
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : isCompleted
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-900'
+                              }`}
+                            >
+                              {order.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Placed on {new Date(order.date).toLocaleDateString()} at{' '}
+                            {new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setInvoiceOrder(order);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Invoice</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Visual Stepper Tracker (Blinkit style) */}
+                      {!isCancelled && (
+                        <div className="py-1">
+                          <div className="grid grid-cols-4 gap-1 relative">
+                            {steps.map((st, sIdx) => {
+                              const isPassed = sIdx <= currentStepIdx;
+                              return (
+                                <div key={st} className="text-center">
+                                  <div
+                                    className={`h-1.5 rounded-full mb-1.5 transition-all ${
+                                      isPassed ? 'bg-emerald-500' : 'bg-slate-200'
+                                    }`}
+                                  />
+                                  <span
+                                    className={`text-[10px] font-bold block leading-tight ${
+                                      isPassed ? 'text-emerald-800' : 'text-slate-400'
+                                    }`}
+                                  >
+                                    {st}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pickup Window & Slot Banner */}
+                      <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                          <div>
+                            <span className="font-bold text-slate-900">Pickup Slot: </span>
+                            <span className="text-amber-900 font-semibold">{order.pickupSlot}</span>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          Hub: Dwaraka Nagar
+                        </span>
+                      </div>
+
+                      {/* Items Breakdown */}
+                      <div className="space-y-1.5 text-xs text-slate-700 pt-1">
+                        {order.items?.map((it, idx) => (
+                          <div key={idx} className="flex justify-between items-center">
+                            <span className="font-medium line-clamp-1">
+                              {it.quantity}x {it.title}
+                              {it.selectedWeight && (
+                                <span className="ml-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1 rounded">
+                                  {it.selectedWeight}
+                                </span>
+                              )}
+                            </span>
+                            <span className="font-bold font-mono text-slate-900">
+                              ₹{(it.price * it.quantity).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Total Row */}
+                      <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
+                        <span className="text-xs text-slate-500 font-medium">
+                          Payment: {order.paymentMethod || 'UPI QR'}
+                        </span>
+                        <span className="text-sm font-black text-slate-900">
+                          Total Paid: ₹{order.total?.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            /* TAB 2: PROFILE & HUB DETAILS */
+            <div className="space-y-4">
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                <h4 className="font-bold text-slate-900 text-sm">Customer Profile Details</h4>
+                <div className="space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                    <span className="text-slate-500">Full Name:</span>
+                    <span className="font-bold text-slate-900">{currentUser.name}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                    <span className="text-slate-500">WhatsApp Mobile:</span>
+                    <span className="font-mono font-bold text-slate-900">{currentUser.phone}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Preferred Pickup Store:</span>
+                    <span className="font-bold text-amber-800">Dwaraka Nagar Central Hub</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Store Handover Location Card */}
+              <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                  <Store className="w-4 h-4 text-amber-600" />
+                  <span>Central Counter Address</span>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  {storeInfo.name} • {storeInfo.address} (Near RTC Complex, Vizag)
+                </p>
+                <div className="flex items-center gap-4 text-[11px] text-slate-600 pt-1 font-medium">
+                  <span>⏰ Timings: {storeInfo.workingHours}</span>
+                  <span>📞 Phone: {storeInfo.phone}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full py-2.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-xs flex items-center justify-center gap-1.5 transition"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out from this Device</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,16 +1,28 @@
-import React from 'react';
-import { ShoppingBag, Star, Eye, ShieldCheck, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShoppingBag, Star, Eye, ShieldCheck, Check, Plus, Minus } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function ProductCard({ product }) {
-  const { addToCart, setSelectedProduct, cart } = useStore();
+  const { addToCart, updateCartQuantity, setSelectedProduct, cart } = useStore();
+
+  // Selected weight variant (defaults to isDefault variant or first variant)
+  const defaultVar =
+    product.variants && product.variants.length > 0
+      ? product.variants.find((v) => v.isDefault) || product.variants[0]
+      : null;
+
+  const [selectedVariant, setSelectedVariant] = useState(defaultVar);
+
+  const displayPrice = selectedVariant ? selectedVariant.price : product.price;
+  const displayMrp = selectedVariant ? (selectedVariant.mrp || product.mrp) : product.mrp;
+  const discountPercent = Math.round(((displayMrp - displayPrice) / displayMrp) * 100);
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 5;
-  const discountPercent = Math.round(((product.mrp - product.price) / product.mrp) * 100);
 
-  // Check if item is already in cart
-  const itemInCart = cart.find((item) => item.id === product.id);
+  // Check if this specific item/variant is in cart
+  const cartKey = selectedVariant ? `${product.id}-${selectedVariant.weight}` : product.id;
+  const itemInCart = cart.find((item) => (item.cartItemId || item.id) === cartKey);
 
   return (
     <div className="group bg-white rounded-2xl border border-slate-200/80 hover:border-amber-400/80 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden relative">
@@ -22,7 +34,6 @@ export default function ProductCard({ product }) {
           loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           onError={(e) => {
-            // Fallback placeholder if unsplash fails
             e.target.src = 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80';
           }}
         />
@@ -84,43 +95,82 @@ export default function ProductCard({ product }) {
             {product.title}
           </h3>
 
-          {/* Key Specs Preview */}
-          <div className="text-xs text-slate-500 mb-3 space-y-0.5 line-clamp-2">
-            {product.specs?.power && (
-              <p className="flex items-center gap-1 font-medium text-slate-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                Power: {product.specs.power}
-              </p>
-            )}
-            {product.specs?.warranty && (
-              <p className="flex items-center gap-1 text-slate-500 text-[11px]">
-                <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                {product.specs.warranty}
-              </p>
-            )}
-            {product.specs?.packWeight && (
-              <p className="flex items-center gap-1 font-medium text-slate-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                Net Weight: {product.specs.packWeight}
-              </p>
-            )}
-            {product.specs?.grade && (
-              <p className="flex items-center gap-1 text-slate-500 text-[11px]">
-                Quality: {product.specs.grade}
-              </p>
-            )}
-          </div>
+          {/* Key Specs Preview (for Appliances) */}
+          {product.category === 'Kitchen Appliances' && (
+            <div className="text-xs text-slate-500 mb-3 space-y-0.5 line-clamp-2">
+              {product.specs?.power && (
+                <p className="flex items-center gap-1 font-medium text-slate-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Power: {product.specs.power}
+                </p>
+              )}
+              {product.specs?.warranty && (
+                <p className="flex items-center gap-1 text-slate-500 text-[11px]">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                  {product.specs.warranty}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Weight Variant Selector (For Dry Fruits / Loose Goods) */}
+          {product.hasVariants && product.variants?.length > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="font-bold text-slate-600">Select Pack Size:</span>
+                {selectedVariant && (
+                  <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded text-[10px] border border-amber-200">
+                    {selectedVariant.weight}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-1">
+                {product.variants.map((v) => {
+                  const isSelected = selectedVariant?.weight === v.weight;
+                  return (
+                    <button
+                      key={v.weight}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedVariant(v);
+                      }}
+                      className={`py-1.5 px-0.5 rounded-lg text-center transition border ${
+                        isSelected
+                          ? 'border-amber-600 bg-amber-600 text-white font-extrabold shadow-2xs'
+                          : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-amber-300 hover:bg-amber-50/50'
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold leading-tight">{v.weight}</div>
+                      <div
+                        className={`text-[9px] font-semibold leading-tight ${
+                          isSelected ? 'text-amber-100' : 'text-slate-500'
+                        }`}
+                      >
+                        ₹{v.price}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pricing & Stock Status */}
         <div className="pt-2 border-t border-slate-100">
           <div className="flex items-baseline gap-2 mb-2">
             <span className="text-lg sm:text-xl font-extrabold text-slate-900">
-              ₹{product.price.toLocaleString('en-IN')}
+              ₹{displayPrice.toLocaleString('en-IN')}
             </span>
-            {product.mrp > product.price && (
+            {displayMrp > displayPrice && (
               <span className="text-xs text-slate-400 line-through">
-                ₹{product.mrp.toLocaleString('en-IN')}
+                ₹{displayMrp.toLocaleString('en-IN')}
+              </span>
+            )}
+            {selectedVariant && (
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({selectedVariant.label || selectedVariant.weight})
               </span>
             )}
           </div>
@@ -133,7 +183,7 @@ export default function ProductCard({ product }) {
               </span>
             ) : isLowStock ? (
               <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded animate-pulse">
-                ⚡ Only {product.stock} left in Vizag hub!
+                ⚡ Only {product.stock} units ready in Vizag hub!
               </span>
             ) : (
               <span className="text-emerald-700 font-semibold flex items-center gap-1">
@@ -143,28 +193,48 @@ export default function ProductCard({ product }) {
             )}
           </div>
 
-          {/* Action Buttons */}
-          <button
-            onClick={() => addToCart(product, 1)}
-            disabled={isOutOfStock}
-            className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs ${
-              isOutOfStock
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : itemInCart
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
-                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/25 active:scale-[0.98]'
-            }`}
-          >
-            {itemInCart ? (
-              <>
-                <Check className="w-4 h-4" /> Added ({itemInCart.quantity} in Cart)
-              </>
-            ) : (
-              <>
-                <ShoppingBag className="w-4 h-4" /> Add to Cart
-              </>
-            )}
-          </button>
+          {/* Action Buttons: Add to Cart or Stepper */}
+          {itemInCart ? (
+            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-300 rounded-xl p-1">
+              <button
+                type="button"
+                onClick={() => updateCartQuantity(cartKey, itemInCart.quantity - 1)}
+                className="w-8 h-8 rounded-lg bg-white hover:bg-emerald-100 flex items-center justify-center font-bold text-emerald-800 shadow-2xs transition"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <div className="text-center px-2">
+                <span className="text-xs font-bold text-emerald-950">
+                  {itemInCart.quantity} in Cart
+                </span>
+                {selectedVariant && (
+                  <span className="block text-[9px] text-emerald-700 font-medium leading-none">
+                    ({selectedVariant.weight})
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => updateCartQuantity(cartKey, itemInCart.quantity + 1)}
+                className="w-8 h-8 rounded-lg bg-white hover:bg-emerald-100 flex items-center justify-center font-bold text-emerald-800 shadow-2xs transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => addToCart(product, 1, selectedVariant)}
+              disabled={isOutOfStock}
+              className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs ${
+                isOutOfStock
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/25 active:scale-[0.98]'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Add {selectedVariant ? `${selectedVariant.weight}` : ''} to Cart</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
