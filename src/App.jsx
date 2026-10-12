@@ -26,21 +26,25 @@ function StorefrontContent() {
     isAdminMode,
     setSelectedCategory,
     isFeedbackModalOpen,
-    setIsFeedbackModalOpen
+    setIsFeedbackModalOpen,
+    isCloudLoaded
   } = useStore();
 
   const [activePolicy, setActivePolicy] = useState(null);
 
   // Active ongoing pickup order for current shopper (e.g. Placed, Packed, Ready for Pickup)
   const cleanUserPhone = currentUser?.phone?.replace(/\D/g, '');
-  const activeOrder = cleanUserPhone
-    ? orders.find(
-        (o) =>
-          o.customer?.phone?.replace(/\D/g, '') === cleanUserPhone &&
-          o.status !== 'Completed' &&
-          o.status !== 'Cancelled'
-      )
-    : null;
+  const now = new Date();
+  const activeOrder =
+    cleanUserPhone && isCloudLoaded
+      ? orders.find(
+          (o) =>
+            o.customer?.phone?.replace(/\D/g, '') === cleanUserPhone &&
+            o.status !== 'Completed' &&
+            o.status !== 'Cancelled' &&
+            (!o.expiresAt || new Date(o.expiresAt) > now)
+        )
+      : null;
 
   // Filter products by Category & Search
   const filteredProducts = products.filter((p) => {

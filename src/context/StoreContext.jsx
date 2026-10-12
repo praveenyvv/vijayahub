@@ -109,6 +109,7 @@ export function StoreProvider({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isCloudConnected, setIsCloudConnected] = useState(isSupabaseConfigured);
+  const [isCloudLoaded, setIsCloudLoaded] = useState(!isSupabaseConfigured);
   const [newOrderAlert, setNewOrderAlert] = useState(null);
 
   // Sync categories to localStorage
@@ -143,17 +144,25 @@ export function StoreProvider({ children }) {
 
   // --- Real-Time Supabase Cloud Synchronization ---
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
+    if (!isSupabaseConfigured || !supabase) {
+      setIsCloudLoaded(true);
+      return;
+    }
 
-    // 1. Initial fetch of products and orders from Supabase
+    // 1. Initial fetch of products and orders from Supabase (Concurrent Parallel Fetch)
     const fetchCloudData = async () => {
       try {
-        const { data: cloudProducts, error: pError } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const [productsRes, ordersRes, feedbacksRes] = await Promise.all([
+          supabase.from('products').select('*').order('created_at', { ascending: false }),
+          supabase.from('orders').select('*').order('created_at', { ascending: false }),
+          supabase.from('feedbacks').select('*').order('created_at', { ascending: false })
+        ]);
 
-        if (!pError && cloudProducts && cloudProducts.length > 0) {
+        const cloudProducts = productsRes.data;
+        const cloudOrders = ordersRes.data;
+        const cloudFeedbacks = feedbacksRes.data;
+
+        if (cloudProducts && cloudProducts.length > 0) {
           // Normalize snake_case columns if present
           const formattedProducts = cloudProducts.map((p) => ({
             ...p,
@@ -163,27 +172,50 @@ export function StoreProvider({ children }) {
           setProducts(formattedProducts);
         }
 
-        const { data: cloudOrders, error: oError } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false });
+        if (cloudOrders && cloudOrders.length > 0) {
+          const now = new Date();
+          const formattedOrders = cloudOrders.map((o) => {
+            // Instant expiry check on load so past orders are never displayed as active
+            const isExpired =
+              o.expires_at &&
+              new Date(o.expires_at) < now &&
+              o.status !== 'Completed' &&
+              o.status !== 'Cancelled';
 
-        if (!oError && cloudOrders && cloudOrders.length > 0) {
-          const formattedOrders = cloudOrders.map((o) => ({
-            ...o,
-            itemSubtotal: o.item_subtotal ?? o.itemSubtotal,
-            deliveryFee: o.delivery_fee ?? o.deliveryFee,
-            pickupSlot: o.pickup_slot ?? o.pickupSlot,
-            fulfillmentType: o.fulfillment_type ?? o.fulfillmentType,
-            paymentStatus: o.payment_status ?? o.paymentStatus,
-            paymentMethod: o.payment_method ?? o.paymentMethod,
-            upiRefNumber: o.upi_ref_number ?? o.upiRefNumber,
-            pickupOtp: o.pickup_otp ?? o.customer?.pickupOtp ?? o.pickupOtp ?? '4821',
-            date: o.date || o.created_at || new Date().toISOString(),
-            expiresAt: o.expires_at ?? o.expiresAt,
-            cancellationReason: o.cancellation_reason ?? o.cancellationReason,
-            cancelledAt: o.cancelled_at ?? o.cancelledAt
-          }));
+            const effectiveStatus = isExpired ? 'Cancelled' : o.status;
+
+            if (isExpired && isSupabaseConfigured && supabase) {
+              supabase
+                .from('orders')
+                .update({
+                  status: 'Cancelled',
+                  cancellation_reason: 'Auto-cancelled: Store pickup not collected within 24 hours',
+                  cancelled_at: now.toISOString()
+                })
+                .eq('id', o.id)
+                .then();
+            }
+
+            return {
+              ...o,
+              itemSubtotal: o.item_subtotal ?? o.itemSubtotal,
+              deliveryFee: o.delivery_fee ?? o.deliveryFee,
+              pickupSlot: o.pickup_slot ?? o.pickupSlot,
+              fulfillmentType: o.fulfillment_type ?? o.fulfillmentType,
+              status: effectiveStatus,
+              paymentStatus: o.payment_status ?? o.paymentStatus,
+              paymentMethod: o.payment_method ?? o.paymentMethod,
+              upiRefNumber: o.upi_ref_number ?? o.upiRefNumber,
+              pickupOtp: o.pickup_otp ?? o.customer?.pickupOtp ?? o.pickupOtp ?? '4821',
+              date: o.date || o.created_at || new Date().toISOString(),
+              expiresAt: o.expires_at ?? o.expiresAt,
+              cancellationReason: isExpired
+                ? 'Auto-cancelled: Store pickup not collected within 24 hours'
+                : (o.cancellation_reason ?? o.cancellationReason),
+              cancelledAt: isExpired ? now.toISOString() : (o.cancelled_at ?? o.cancelledAt)
+            };
+          });
+
           // Merge safely: preserve any locally placed orders not yet in cloud so they never disappear
           setOrders((prev) => {
             const cloudIds = new Set(formattedOrders.map((co) => co.id));
@@ -192,12 +224,6 @@ export function StoreProvider({ children }) {
           });
         }
 
-        // Fetch feedbacks
-        const { data: cloudFeedbacks } = await supabase
-          .from('feedbacks')
-          .select('*')
-          .order('created_at', { ascending: false });
-
         if (cloudFeedbacks && cloudFeedbacks.length > 0) {
           setFeedbacks(cloudFeedbacks);
         }
@@ -205,6 +231,8 @@ export function StoreProvider({ children }) {
         setIsCloudConnected(true);
       } catch (err) {
         console.warn('Supabase initial fetch note:', err);
+      } finally {
+        setIsCloudLoaded(true);
       }
     };
 
@@ -375,6 +403,19 @@ export function StoreProvider({ children }) {
             order.items?.forEach((item) => {
               restockMap[item.id] = (restockMap[item.id] || 0) + item.quantity;
             });
+
+            // Persist cancellation in Supabase cloud database
+            if (isSupabaseConfigured && supabase) {
+              supabase
+                .from('orders')
+                .update({
+                  status: 'Cancelled',
+                  cancellation_reason: 'Auto-cancelled: Store pickup not collected within 24 hours',
+                  cancelled_at: now.toISOString()
+                })
+                .eq('id', order.id)
+                .then();
+            }
 
             return {
               ...order,
@@ -806,6 +847,7 @@ export function StoreProvider({ children }) {
         submitFeedback,
         seedDefaultCatalog,
         isCloudConnected,
+        isCloudLoaded,
         newOrderAlert,
         setNewOrderAlert,
         // Action methods
