@@ -196,22 +196,57 @@ export default function AdminDashboard() {
     });
   };
 
-  // Multiple image file upload handler (converts files to base64 Data URLs)
+  // Helper to compress uploaded image files to max 900x900 JPEG (~40KB-80KB)
+  const compressImageFile = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX_DIM = 900;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to lightweight high-quality JPEG
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => resolve(event.target?.result);
+        img.src = event.target?.result;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Multiple image file upload handler (auto-compresses files)
   const handleImageFilesUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const readers = files.map((file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target?.result);
-        reader.readAsDataURL(file);
-      });
-    });
+    const compressionPromises = files.map((file) => compressImageFile(file));
 
-    Promise.all(readers).then((newBase64Images) => {
+    Promise.all(compressionPromises).then((newCompressedImages) => {
       setFormData((prev) => {
-        const validNew = newBase64Images.filter(Boolean);
+        const validNew = newCompressedImages.filter(Boolean);
         const updated = [...(prev.images || []), ...validNew];
         return {
           ...prev,

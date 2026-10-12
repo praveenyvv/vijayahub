@@ -71,9 +71,31 @@ export function StoreProvider({ children }) {
   });
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
-  // Sync feedbacks to localStorage
+  // Safe LocalStorage wrapper to prevent QuotaExceededError or private browsing exceptions
+  const safeSetStorage = (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      console.warn(`localStorage set warning for ${key}:`, err);
+      // If products storage exceeds quota, gracefully strip heavy data URLs and retry
+      if (key === PRODUCTS_STORAGE_KEY && Array.isArray(value)) {
+        try {
+          const lightweight = value.map((p) => ({
+            ...p,
+            images: (p.images || []).filter((img) => !img?.startsWith('data:')).slice(0, 2),
+            image: p.image?.startsWith('data:') ? '' : p.image
+          }));
+          localStorage.setItem(key, JSON.stringify(lightweight));
+        } catch {
+          // ignore fallback
+        }
+      }
+    }
+  };
+
+  // Sync feedbacks to localStorage safely
   useEffect(() => {
-    localStorage.setItem('vijayahub_feedbacks_v1', JSON.stringify(feedbacks));
+    safeSetStorage('vijayahub_feedbacks_v1', feedbacks);
   }, [feedbacks]);
 
   // 7. UI Modals and Navigation states
@@ -91,27 +113,31 @@ export function StoreProvider({ children }) {
 
   // Sync categories to localStorage
   useEffect(() => {
-    localStorage.setItem('vijayahub_categories_v1', JSON.stringify(categories));
+    safeSetStorage('vijayahub_categories_v1', categories);
   }, [categories]);
 
-  // Sync to localStorage
+  // Sync to localStorage safely
   useEffect(() => {
-    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+    safeSetStorage(PRODUCTS_STORAGE_KEY, products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    safeSetStorage(ORDERS_STORAGE_KEY, orders);
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    safeSetStorage(CART_STORAGE_KEY, cart);
   }, [cart]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(currentUser));
+      safeSetStorage(USER_STORAGE_KEY, currentUser);
     } else {
-      localStorage.removeItem(USER_STORAGE_KEY);
+      try {
+        localStorage.removeItem(USER_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
     }
   }, [currentUser]);
 
