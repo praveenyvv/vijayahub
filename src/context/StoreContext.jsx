@@ -50,7 +50,33 @@ export function StoreProvider({ children }) {
     }
   });
 
-  // 5. UI Modals and Navigation states
+  // 5. Custom Categories state (persisted)
+  const [categories, setCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vijayahub_categories_v1');
+      return saved ? JSON.parse(saved) : ['Kitchen Appliances', 'Dry Fruits & Nuts'];
+    } catch (e) {
+      return ['Kitchen Appliances', 'Dry Fruits & Nuts'];
+    }
+  });
+
+  // 6. Feedbacks & Customer Support tickets (persisted locally + cloud)
+  const [feedbacks, setFeedbacks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vijayahub_feedbacks_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  // Sync feedbacks to localStorage
+  useEffect(() => {
+    localStorage.setItem('vijayahub_feedbacks_v1', JSON.stringify(feedbacks));
+  }, [feedbacks]);
+
+  // 7. UI Modals and Navigation states
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -62,6 +88,11 @@ export function StoreProvider({ children }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isCloudConnected, setIsCloudConnected] = useState(isSupabaseConfigured);
   const [newOrderAlert, setNewOrderAlert] = useState(null);
+
+  // Sync categories to localStorage
+  useEffect(() => {
+    localStorage.setItem('vijayahub_categories_v1', JSON.stringify(categories));
+  }, [categories]);
 
   // Sync to localStorage
   useEffect(() => {
@@ -121,11 +152,28 @@ export function StoreProvider({ children }) {
             paymentStatus: o.payment_status ?? o.paymentStatus,
             paymentMethod: o.payment_method ?? o.paymentMethod,
             upiRefNumber: o.upi_ref_number ?? o.upiRefNumber,
+            pickupOtp: o.pickup_otp ?? o.customer?.pickupOtp ?? o.pickupOtp ?? '4821',
+            date: o.date || o.created_at || new Date().toISOString(),
             expiresAt: o.expires_at ?? o.expiresAt,
             cancellationReason: o.cancellation_reason ?? o.cancellationReason,
             cancelledAt: o.cancelled_at ?? o.cancelledAt
           }));
-          setOrders(formattedOrders);
+          // Merge safely: preserve any locally placed orders not yet in cloud so they never disappear
+          setOrders((prev) => {
+            const cloudIds = new Set(formattedOrders.map((co) => co.id));
+            const localOnly = prev.filter((lo) => !cloudIds.has(lo.id));
+            return [...formattedOrders, ...localOnly];
+          });
+        }
+
+        // Fetch feedbacks
+        const { data: cloudFeedbacks } = await supabase
+          .from('feedbacks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (cloudFeedbacks && cloudFeedbacks.length > 0) {
+          setFeedbacks(cloudFeedbacks);
         }
 
         setIsCloudConnected(true);
@@ -153,6 +201,8 @@ export function StoreProvider({ children }) {
             paymentStatus: newOrder.payment_status ?? newOrder.paymentStatus,
             paymentMethod: newOrder.payment_method ?? newOrder.paymentMethod,
             upiRefNumber: newOrder.upi_ref_number ?? newOrder.upiRefNumber,
+            pickupOtp: newOrder.pickup_otp ?? newOrder.customer?.pickupOtp ?? newOrder.pickupOtp ?? '4821',
+            date: newOrder.date || newOrder.created_at || new Date().toISOString(),
             expiresAt: newOrder.expires_at ?? newOrder.expiresAt
           };
 
@@ -338,6 +388,8 @@ export function StoreProvider({ children }) {
     const newOrderId = `VH-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    // Generate secure 4-digit Pickup Verification OTP
+    const pickupOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
 
     const fullOrder = {
       id: newOrderId,
@@ -346,6 +398,7 @@ export function StoreProvider({ children }) {
       fulfillmentType: 'pickup', // Strictly store pickup only
       status: 'Placed',
       paymentStatus: 'PAID',
+      pickupOtp: pickupOtp, // Unique OTP required for physical pickup handover
       ...orderData
     };
 
@@ -379,24 +432,46 @@ export function StoreProvider({ children }) {
     // 4. Save order to Supabase cloud if connected
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('orders').insert([
+        const orderPayload = {
+          id: fullOrder.id,
+          customer: {
+            ...fullOrder.customer,
+            pickupOtp: fullOrder.pickupOtp
+          },
+          items: fullOrder.items,
+          item_subtotal: fullOrder.itemSubtotal,
+          delivery_fee: fullOrder.deliveryFee || 0,
+          total: fullOrder.total,
+          pickup_slot: fullOrder.pickupSlot,
+          fulfillment_type: fullOrder.fulfillmentType,
+          status: fullOrder.status,
+          payment_status: fullOrder.paymentStatus,
+          payment_method: fullOrder.paymentMethod,
+          upi_ref_number: fullOrder.upiRefNumber,
+          notes: fullOrder.notes,
+          expires_at: fullOrder.expiresAt
+        };
+
+        // Attempt insert with pickup_otp column if it exists in DB table
+        const { error: insertError } = await supabase.from('orders').insert([
           {
-            id: fullOrder.id,
-            customer: fullOrder.customer,
-            items: fullOrder.items,
-            item_subtotal: fullOrder.itemSubtotal,
-            delivery_fee: fullOrder.deliveryFee || 0,
-            total: fullOrder.total,
-            pickup_slot: fullOrder.pickupSlot,
-            fulfillment_type: fullOrder.fulfillmentType,
-            status: fullOrder.status,
-            payment_status: fullOrder.paymentStatus,
-            payment_method: fullOrder.paymentMethod,
-            upi_ref_number: fullOrder.upiRefNumber,
-            notes: fullOrder.notes,
-            expires_at: fullOrder.expiresAt
+            ...orderPayload,
+            pickup_otp: fullOrder.pickupOtp
           }
         ]);
+
+        if (insertError) {
+          console.warn('Supabase insert with pickup_otp column note:', insertError.message);
+          // If pickup_otp column does not exist in schema, insert safe payload (pickupOtp is preserved in customer JSONB)
+          const { error: fallbackError } = await supabase.from('orders').insert([orderPayload]);
+          if (fallbackError) {
+            console.error('Supabase fallback order insert error:', fallbackError);
+          } else {
+            console.log('Order successfully saved to Supabase (safe JSONB payload)');
+          }
+        } else {
+          console.log('Order successfully saved to Supabase (with pickup_otp column)');
+        }
       } catch (err) {
         console.warn('Supabase order insert note:', err);
       }
@@ -463,10 +538,49 @@ export function StoreProvider({ children }) {
     }
   };
 
+  // Order Status Progression Ranking: Strictly Forward-Only
+  // 1 (Placed) -> 2 (Packed) -> 3 (Ready for Pickup) -> 4 (Completed)
+  const STATUS_RANK = {
+    Placed: 1,
+    Packed: 2,
+    'Ready for Pickup': 3,
+    Completed: 4
+  };
+
   const updateOrderStatus = (orderId, newStatus) => {
+    const currentOrder = orders.find((o) => o.id === orderId);
+    if (!currentOrder) return;
+
     if (newStatus === 'Cancelled') {
-      cancelOrderAndRestock(orderId, 'Cancelled by store admin');
+      cancelOrderAndRestock(orderId, 'Cancelled via store manager / customer helpline');
       return;
+    }
+
+    // Prevent moving backwards once packed or ready for pickup
+    const currentRank = STATUS_RANK[currentOrder.status] || 0;
+    const newRank = STATUS_RANK[newStatus] || 0;
+
+    if (newRank < currentRank) {
+      alert(
+        `Cannot move status backwards! Order #${orderId} is already '${currentOrder.status}'. Orders only move forward towards pickup completion.`
+      );
+      return;
+    }
+
+    // Auto-prompt WhatsApp notification when order is Ready for Pickup
+    if (newStatus === 'Ready for Pickup') {
+      const custPhone = currentOrder.customer?.phone?.replace(/\D/g, '');
+      const custName = currentOrder.customer?.name || 'Customer';
+      const otpCode = currentOrder.pickupOtp || '1234';
+      const hubAddress = 'VijayaHub Central Hub, Dwaraka Nagar, Visakhapatnam';
+      const waMsg = `Hello ${custName}! 📦 Your VijayaHub order #${currentOrder.id} is PACKED & READY FOR PICKUP at ${hubAddress}.\n\n🔑 Your Pickup Verification OTP is: *${otpCode}*.\n\nPlease show this OTP at the counter within your 24-hr window to collect your parcel. Thank you!`;
+      
+      const shouldSend = window.confirm(
+        `🔔 Order #${orderId} is now READY FOR PICKUP!\n\nWould you like to open WhatsApp to send the pickup ready message & OTP to ${custName} (${currentOrder.customer?.phone})?`
+      );
+      if (shouldSend && custPhone) {
+        window.open(`https://wa.me/91${custPhone}?text=${encodeURIComponent(waMsg)}`, '_blank');
+      }
     }
 
     setOrders((prev) =>
@@ -479,6 +593,71 @@ export function StoreProvider({ children }) {
 
     if (completedOrder && completedOrder.id === orderId) {
       setCompletedOrder((prev) => ({ ...prev, status: newStatus }));
+    }
+  };
+
+  // Submit Customer Feedback or Support Ticket
+  const submitFeedback = async (feedbackData) => {
+    const newFeedback = {
+      id: `FB-${Math.floor(1000 + Math.random() * 9000)}`,
+      customer_name: feedbackData.customerName,
+      customer_phone: feedbackData.customerPhone,
+      type: feedbackData.type,
+      rating: feedbackData.rating || 5,
+      order_id: feedbackData.orderId || null,
+      message: feedbackData.message,
+      status: 'Open',
+      created_at: new Date().toISOString()
+    };
+
+    setFeedbacks((prev) => [newFeedback, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('feedbacks').insert([newFeedback]);
+      } catch (err) {
+        console.warn('Supabase feedback insert note:', err);
+      }
+    }
+
+    return newFeedback;
+  };
+
+  // Seed Default Catalog to Supabase Cloud so dummy products are permanently saved
+  const seedDefaultCatalog = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      alert('Supabase is not configured yet. Please check your credentials.');
+      return;
+    }
+
+    try {
+      const inserts = INITIAL_PRODUCTS.map((p) => ({
+        id: p.id,
+        title: p.title,
+        category: p.category,
+        price: p.price,
+        mrp: p.mrp,
+        stock: p.stock,
+        max_per_customer: p.maxPerCustomer || 0,
+        has_variants: p.hasVariants || false,
+        variants: p.variants || [],
+        image: p.image,
+        images: p.images || [p.image],
+        description: p.description,
+        specs: p.specs || {},
+        badge: p.badge || null,
+        rating: p.rating || 4.8,
+        reviews_count: p.reviewsCount || 25
+      }));
+
+      const { error } = await supabase.from('products').upsert(inserts);
+      if (error) throw error;
+
+      setProducts(INITIAL_PRODUCTS);
+      alert('✅ Default catalog successfully seeded to Supabase Cloud!');
+    } catch (err) {
+      console.error('Error seeding catalog:', err);
+      alert('Failed to seed catalog: ' + err.message);
     }
   };
 
@@ -592,6 +771,14 @@ export function StoreProvider({ children }) {
         setSearchQuery,
         selectedCategory,
         setSelectedCategory,
+        categories,
+        setCategories,
+        feedbacks,
+        setFeedbacks,
+        isFeedbackModalOpen,
+        setIsFeedbackModalOpen,
+        submitFeedback,
+        seedDefaultCatalog,
         isCloudConnected,
         newOrderAlert,
         setNewOrderAlert,

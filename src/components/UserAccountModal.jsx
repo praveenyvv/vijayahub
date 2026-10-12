@@ -273,18 +273,37 @@ export default function UserAccountModal() {
                         </div>
                       )}
 
-                      {/* Pickup Window & Slot Banner */}
-                      <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                          <div>
-                            <span className="font-bold text-slate-900">Pickup Slot: </span>
-                            <span className="text-amber-900 font-semibold">{order.pickupSlot}</span>
+                      {/* Pickup Window, Verification OTP & Slot Banner */}
+                      <div className="bg-amber-50/80 border border-amber-300 rounded-2xl p-3.5 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                            <div>
+                              <span className="font-bold text-slate-900">Pickup Slot: </span>
+                              <span className="text-amber-900 font-semibold">{order.pickupSlot}</span>
+                            </div>
                           </div>
+                          <span className="text-[11px] font-bold text-slate-600">
+                            Hub: Dwaraka Nagar
+                          </span>
                         </div>
-                        <span className="text-[11px] font-bold text-slate-500">
-                          Hub: Dwaraka Nagar
-                        </span>
+
+                        {/* Secure OTP Card for Counter Pickup Handover */}
+                        {!isCancelled && (
+                          <div className="bg-white border-2 border-dashed border-amber-400 rounded-xl p-2.5 flex items-center justify-between shadow-2xs">
+                            <div>
+                              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                                Counter Pickup Verification OTP
+                              </span>
+                              <p className="text-[11px] text-slate-600 font-medium">
+                                Show this secret code to the store counter executive:
+                              </p>
+                            </div>
+                            <div className="bg-amber-600 text-white font-mono font-black text-lg px-3 py-1 rounded-lg tracking-widest shadow-xs">
+                              {order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Items Breakdown */}

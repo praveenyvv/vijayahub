@@ -11,19 +11,36 @@ import InvoiceModal from './components/InvoiceModal';
 import AdminDashboard from './components/AdminDashboard';
 import PolicyModal from './components/PolicyModal';
 import UserAccountModal from './components/UserAccountModal';
+import FeedbackSupportModal from './components/FeedbackSupportModal';
 import Footer from './components/Footer';
 import { Sparkles, Store, Clock, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight } from 'lucide-react';
 
 function StorefrontContent() {
   const {
     products,
+    orders,
+    currentUser,
+    setIsAuthModalOpen,
     selectedCategory,
     searchQuery,
     isAdminMode,
-    setSelectedCategory
+    setSelectedCategory,
+    isFeedbackModalOpen,
+    setIsFeedbackModalOpen
   } = useStore();
 
   const [activePolicy, setActivePolicy] = useState(null);
+
+  // Active ongoing pickup order for current shopper (e.g. Placed, Packed, Ready for Pickup)
+  const cleanUserPhone = currentUser?.phone?.replace(/\D/g, '');
+  const activeOrder = cleanUserPhone
+    ? orders.find(
+        (o) =>
+          o.customer?.phone?.replace(/\D/g, '') === cleanUserPhone &&
+          o.status !== 'Completed' &&
+          o.status !== 'Cancelled'
+      )
+    : null;
 
   // Filter products by Category & Search
   const filteredProducts = products.filter((p) => {
@@ -202,6 +219,59 @@ function StorefrontContent() {
 
       <Footer onOpenPolicy={(policy) => setActivePolicy(policy)} />
 
+      {/* Live Ongoing Pickup Order Pop-Up Bar (Blinkit style bottom notification) */}
+      {activeOrder && (
+        <div className="fixed bottom-18 sm:bottom-5 left-4 right-4 sm:left-auto sm:right-56 z-30 max-w-md animate-in slide-in-from-bottom duration-300">
+          <div
+            onClick={() => setIsAuthModalOpen(true)}
+            className="cursor-pointer bg-slate-900 text-white rounded-2xl p-3.5 shadow-2xl border border-amber-500/40 flex items-center justify-between gap-3 hover:bg-slate-800 transition-all hover:scale-[1.02]"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold shadow-md animate-pulse">
+                <Store className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-black text-white truncate">
+                    Order #{activeOrder.id}
+                  </span>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.2 rounded-full uppercase tracking-wider ${
+                    activeOrder.status === 'Ready for Pickup'
+                      ? 'bg-emerald-400 text-emerald-950 animate-bounce'
+                      : activeOrder.status === 'Packed'
+                      ? 'bg-sky-400 text-sky-950'
+                      : 'bg-amber-400 text-amber-950'
+                  }`}>
+                    {activeOrder.status}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 truncate mt-0.5">
+                  {activeOrder.status === 'Ready for Pickup'
+                    ? '🎉 Ready at Dwaraka Nagar! Tap for OTP.'
+                    : 'Packing your items at Dwaraka Nagar hub...'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs text-amber-400 font-extrabold shrink-0 pl-2 border-l border-slate-700">
+              <span>Track</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Support & Feedback Pill for Shoppers */}
+      <div className="fixed bottom-5 right-5 z-30">
+        <button
+          onClick={() => setIsFeedbackModalOpen(true)}
+          className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 px-4 rounded-full shadow-xl shadow-slate-900/30 flex items-center gap-2 border border-slate-700/60 hover:scale-105 active:scale-95 transition-all"
+        >
+          <MessageSquare className="w-4 h-4 text-amber-400" />
+          <span>Support & Feedback</span>
+        </button>
+      </div>
+
       {/* Global Interactive Modals */}
       <ProductModal />
       <CartDrawer />
@@ -209,6 +279,10 @@ function StorefrontContent() {
       <OrderSuccessModal />
       <InvoiceModal />
       <UserAccountModal />
+      <FeedbackSupportModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+      />
       <PolicyModal policyType={activePolicy} onClose={() => setActivePolicy(null)} />
     </div>
   );

@@ -59,6 +59,13 @@ export default function ProductCard({ product }) {
           </span>
         )}
 
+        {/* Max Per Customer Limit Badge (Offer Items) */}
+        {(product.maxPerCustomer > 0 || product.max_per_customer > 0) && (
+          <span className="absolute bottom-2.5 right-2.5 bg-rose-700/90 text-white text-[9px] font-black px-2 py-0.5 rounded-md backdrop-blur-xs shadow-xs uppercase tracking-wider">
+            Max {product.maxPerCustomer || product.max_per_customer}/user
+          </span>
+        )}
+
         {/* Quick View Button overlay */}
         <button
           onClick={(e) => {

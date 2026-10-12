@@ -136,6 +136,23 @@ export default function OrderSuccessModal() {
             </div>
           </div>
 
+          {/* UNIQUE PICKUP VERIFICATION OTP CARD */}
+          {!isCancelled && (
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl p-4 shadow-md flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-100 block">
+                  Your Pickup Verification OTP
+                </span>
+                <p className="text-xs text-white font-medium mt-0.5">
+                  Show this 4-digit code at Dwaraka Nagar counter for parcel handover
+                </p>
+              </div>
+              <div className="bg-white text-slate-900 font-mono font-black text-2xl px-4 py-2 rounded-xl tracking-widest shadow-lg shrink-0">
+                {completedOrder.pickupOtp || completedOrder.pickup_otp || completedOrder.customer?.pickupOtp || '4821'}
+              </div>
+            </div>
+          )}
+
           {/* Live Order Tracker (Only if not cancelled) */}
           {!isCancelled && (
             <div>

@@ -1,8 +1,9 @@
 -- ==============================================================================
--- VIJAYAHUB SUPABASE DATABASE SCHEMA (RUN IN SUPABASE SQL EDITOR)
+-- VIJAYAHUB SUPABASE DATABASE SCHEMA (UPGRADED V2)
+-- Run this in your Supabase SQL Editor (https://supabase.com/dashboard/project/fwepxfkxsfgiinyxqwrs/sql)
 -- ==============================================================================
 
--- 1. Create PRODUCTS table
+-- 1. Create PRODUCTS table (with max_per_customer support)
 CREATE TABLE IF NOT EXISTS public.products (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -10,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   price NUMERIC NOT NULL,
   mrp NUMERIC NOT NULL,
   stock INTEGER NOT NULL DEFAULT 10,
+  max_per_customer INTEGER DEFAULT 0, -- 0 means no limit; >0 sets per-mobile limit (e.g., max 2 units)
   has_variants BOOLEAN DEFAULT false,
   variants JSONB DEFAULT '[]'::jsonb,
   image TEXT,
@@ -22,6 +24,9 @@ CREATE TABLE IF NOT EXISTS public.products (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Ensure column exists if table was already created
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS max_per_customer INTEGER DEFAULT 0;
 
 -- 2. Create ORDERS table
 CREATE TABLE IF NOT EXISTS public.orders (
@@ -37,6 +42,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   payment_status TEXT DEFAULT 'PAID',
   payment_method TEXT DEFAULT 'UPI QR',
   upi_ref_number TEXT,
+  pickup_otp TEXT,
   notes TEXT,
   expires_at TIMESTAMP WITH TIME ZONE,
   cancellation_reason TEXT,
@@ -44,28 +50,39 @@ CREATE TABLE IF NOT EXISTS public.orders (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Enable Row Level Security (RLS) & Public Policies for Storefront
+-- Ensure pickup_otp column exists if table was already created
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS pickup_otp TEXT;
+
+-- 3. Create FEEDBACK & SUPPORT table
+CREATE TABLE IF NOT EXISTS public.feedbacks (
+  id TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  type TEXT DEFAULT 'review', -- 'review', 'complaint', 'suggestion', 'order_help'
+  rating INTEGER DEFAULT 5,
+  message TEXT NOT NULL,
+  order_id TEXT,
+  status TEXT DEFAULT 'Open', -- 'Open', 'Resolved'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 4. Enable Row Level Security (RLS) & Public Policies
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to read products
-CREATE POLICY "Allow public read on products" 
-ON public.products FOR SELECT USING (true);
+CREATE POLICY "Allow public read on products" ON public.products FOR SELECT USING (true);
+CREATE POLICY "Allow public insert/update on products" ON public.products FOR ALL USING (true);
 
--- Allow admins/store to insert/update products
-CREATE POLICY "Allow public insert/update on products" 
-ON public.products FOR ALL USING (true);
+CREATE POLICY "Allow public insert on orders" ON public.orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public read on orders" ON public.orders FOR SELECT USING (true);
+CREATE POLICY "Allow public update on orders" ON public.orders FOR UPDATE USING (true);
 
--- Allow customers to insert orders & read their own orders
-CREATE POLICY "Allow public insert on orders" 
-ON public.orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert on feedbacks" ON public.feedbacks FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public read on feedbacks" ON public.feedbacks FOR SELECT USING (true);
+CREATE POLICY "Allow public update on feedbacks" ON public.feedbacks FOR UPDATE USING (true);
 
-CREATE POLICY "Allow public read on orders" 
-ON public.orders FOR SELECT USING (true);
-
-CREATE POLICY "Allow public update on orders" 
-ON public.orders FOR UPDATE USING (true);
-
--- 4. Enable Realtime Replication for Instant Order Alerts
+-- 5. Enable Realtime Replication
 ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.feedbacks;

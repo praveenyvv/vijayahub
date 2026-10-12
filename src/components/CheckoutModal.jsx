@@ -38,7 +38,9 @@ export default function CheckoutModal() {
     storeInfo,
     placeOrder,
     currentUser,
-    setCurrentUser
+    setCurrentUser,
+    orders,
+    products
   } = useStore();
 
   // Multi-step checkout: 'details' -> 'payment' -> finish
@@ -90,9 +92,39 @@ export default function CheckoutModal() {
       alert('Please enter your full name.');
       return;
     }
-    if (!customerPhone.trim() || customerPhone.trim().length < 10) {
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
       alert('Please enter a valid 10-digit mobile number for order verification.');
       return;
+    }
+
+    // --- Validate Per-Mobile Purchase Limits for offer items ---
+    for (const cartItem of cart) {
+      const prod = products.find((p) => p.id === cartItem.id);
+      const limit = prod?.maxPerCustomer || prod?.max_per_customer || 0;
+      if (limit > 0) {
+        // Calculate units previously purchased by this phone number across past non-cancelled orders
+        const previousPurchased = orders
+          .filter(
+            (o) =>
+              o.customer?.phone?.replace(/\D/g, '') === cleanPhone &&
+              o.status !== 'Cancelled'
+          )
+          .reduce((sum, o) => {
+            const itemMatch = o.items?.find((it) => it.id === prod.id);
+            return sum + (itemMatch ? (itemMatch.quantity || 1) : 0);
+          }, 0);
+
+        const currentRequested = cartItem.quantity;
+        const totalRequested = previousPurchased + currentRequested;
+
+        if (totalRequested > limit) {
+          alert(
+            `⚠️ Special Offer Limit Exceeded!\n\n"${prod.title}" is limited to a maximum of ${limit} unit(s) per mobile number.\n\nYou have already purchased ${previousPurchased} unit(s) previously.\nPlease adjust your cart quantity to complete this order.`
+          );
+          return;
+        }
+      }
     }
 
     // If Pay at Store Counter on Pickup, finalize immediately
@@ -181,32 +213,32 @@ export default function CheckoutModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+      <div className="relative bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Sticky Header with Always-Visible Close Button */}
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0 border-b border-slate-800">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
             {step === 'payment' && (
               <button
                 onClick={() => setStep('details')}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors shrink-0"
                 title="Back to Edit Details"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg text-white">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-base sm:text-lg text-white truncate">
                   {step === 'details' ? 'Store Pickup Checkout' : 'Scan UPI QR to Pay'}
                 </span>
-                <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-400/30">
-                  {step === 'details' ? 'Step 1: Details & Slot' : 'Step 2: Payment'}
+                <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-400/30 shrink-0">
+                  {step === 'details' ? 'Step 1: Details' : 'Step 2: Payment'}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-xs text-slate-300 truncate mt-0.5">
                 {step === 'details'
-                  ? 'Exclusively Direct Store Pickup • Dwaraka Nagar, Visakhapatnam'
+                  ? 'Direct Store Pickup • Dwaraka Nagar, Vizag'
                   : `Pay exactly ₹${finalTotal.toLocaleString('en-IN')} to ${upiId}`}
               </p>
             </div>
@@ -217,7 +249,8 @@ export default function CheckoutModal() {
               setIsCheckoutOpen(false);
               setStep('details');
             }}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors"
+            className="w-9 h-9 rounded-full bg-slate-800 hover:bg-rose-600 hover:text-white flex items-center justify-center text-slate-300 transition-colors shrink-0 shadow-xs"
+            title="Close Checkout"
           >
             <X className="w-5 h-5" />
           </button>
@@ -227,7 +260,7 @@ export default function CheckoutModal() {
         {/* STEP 1: DETAILS & PICKUP SLOT SELECTION (NO QR CODE HERE)    */}
         {/* ============================================================ */}
         {step === 'details' && (
-          <div className="p-5 sm:p-6 max-h-[80vh] overflow-y-auto space-y-5">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
             {/* Store Pickup Banner & Address */}
             <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-white border border-amber-300/80 rounded-2xl p-4 text-xs text-amber-950">
               <div className="flex items-start gap-3">
@@ -422,7 +455,7 @@ export default function CheckoutModal() {
         {/* STEP 2: DEDICATED UPI PAYMENT SCREEN                         */}
         {/* ============================================================ */}
         {step === 'payment' && (
-          <div className="p-5 sm:p-6 max-h-[80vh] overflow-y-auto space-y-5">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
             <div className="bg-gradient-to-b from-amber-500/10 via-orange-500/5 to-white border-2 border-amber-500/30 rounded-3xl p-5 text-center space-y-4">
               <div className="flex flex-col items-center justify-center">
                 <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-[11px] font-extrabold mb-2">

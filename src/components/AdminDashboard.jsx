@@ -23,7 +23,10 @@ import {
   Star,
   Cloud,
   Bell,
-  Sparkles
+  Sparkles,
+  Clock,
+  KeyRound,
+  CheckCircle2
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -62,12 +65,30 @@ export default function AdminDashboard() {
     setIsAdminMode,
     isCloudConnected,
     newOrderAlert,
-    setNewOrderAlert
+    setNewOrderAlert,
+    categories,
+    setCategories,
+    feedbacks,
+    seedDefaultCatalog
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'settings'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'customers', 'feedbacks', 'settings'
   const [orderFilter, setOrderFilter] = useState('All');
+  const [orderDateFilter, setOrderDateFilter] = useState('All'); // 'All', 'Today', 'Tomorrow'
+  const [orderSearch, setOrderSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+
+  // Dynamic Category Creation
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddCategoryInput, setShowAddCategoryInput] = useState(false);
+
+  // Dedicated OTP Verification Modal state
+  const [otpVerificationModal, setOtpVerificationModal] = useState({
+    isOpen: false,
+    order: null,
+    enteredOtp: '',
+    error: ''
+  });
 
   // Add / Edit Product Modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -77,10 +98,11 @@ export default function AdminDashboard() {
   // Form State
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Kitchen Appliances',
+    category: categories[0] || 'Kitchen Appliances',
     price: '',
     mrp: '',
     stock: '',
+    maxPerCustomer: 0,
     hasVariants: false,
     variants: DEFAULT_LOOSE_VARIANTS,
     images: [IMAGE_PRESETS[0].url],
@@ -106,10 +128,11 @@ export default function AdminDashboard() {
     setCustomUrlInput('');
     setFormData({
       title: '',
-      category: 'Kitchen Appliances',
+      category: categories[0] || 'Kitchen Appliances',
       price: '',
       mrp: '',
       stock: '10',
+      maxPerCustomer: 0,
       hasVariants: false,
       variants: DEFAULT_LOOSE_VARIANTS,
       images: [IMAGE_PRESETS[0].url],
@@ -139,6 +162,7 @@ export default function AdminDashboard() {
       price: product.price,
       mrp: product.mrp,
       stock: product.stock,
+      maxPerCustomer: product.maxPerCustomer || product.max_per_customer || 0,
       hasVariants: Boolean(product.hasVariants),
       variants:
         product.variants && product.variants.length > 0
@@ -261,6 +285,7 @@ export default function AdminDashboard() {
       price: Number(formData.price),
       mrp: Number(formData.mrp || formData.price),
       stock: Number(formData.stock),
+      maxPerCustomer: Number(formData.maxPerCustomer || 0),
       hasVariants: Boolean(formData.hasVariants),
       variants: formData.hasVariants ? formData.variants : [],
       images: finalImages,
@@ -290,10 +315,85 @@ export default function AdminDashboard() {
     setIsProductModalOpen(false);
   };
 
-  const filteredOrders =
-    orderFilter === 'All'
-      ? orders
-      : orders.filter((o) => o.status.toLowerCase() === orderFilter.toLowerCase());
+  // Helper to get YYYY-MM-DD in local browser/client timezone
+  const getLocalDateStr = (d = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDateStr = getLocalDateStr(new Date());
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowDateStr = getLocalDateStr(tomorrowDate);
+
+  const getOrderLocalDateStr = (dateVal) => {
+    if (!dateVal) return '';
+    try {
+      return getLocalDateStr(new Date(dateVal));
+    } catch {
+      return String(dateVal).split('T')[0];
+    }
+  };
+
+  const filteredOrders = orders.filter((o) => {
+    // 1. Status Filter
+    const matchesStatus =
+      orderFilter === 'All' || o.status.toLowerCase() === orderFilter.toLowerCase();
+
+    // 2. Search Filter (by Order ID e.g. VH-1024, Customer Name, or Phone Number)
+    const q = orderSearch.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      o.id.toLowerCase().includes(q) ||
+      (o.customer?.name && o.customer.name.toLowerCase().includes(q)) ||
+      (o.customer?.phone && o.customer.phone.includes(q)) ||
+      (o.upiRefNumber && o.upiRefNumber.toLowerCase().includes(q));
+
+    // 3. Date / Pickup Timing Filter
+    let matchesDate = true;
+    if (orderDateFilter === 'Today') {
+      const orderLocalDay = getOrderLocalDateStr(o.date);
+      matchesDate =
+        orderLocalDay === todayDateStr ||
+        (o.date && o.date.startsWith(todayDateStr)) ||
+        (o.pickupSlot && o.pickupSlot.toLowerCase().includes('today'));
+    } else if (orderDateFilter === 'Tomorrow') {
+      const orderLocalDay = getOrderLocalDateStr(o.date);
+      matchesDate =
+        orderLocalDay === tomorrowDateStr ||
+        (o.date && o.date.startsWith(tomorrowDateStr)) ||
+        (o.pickupSlot && o.pickupSlot.toLowerCase().includes('tomorrow'));
+    }
+
+    return matchesStatus && matchesSearch && matchesDate;
+  });
+
+  // Calculate Unique Registered / Ordering Customers
+  const customerMap = {};
+  orders.forEach((o) => {
+    const phone = o.customer?.phone?.replace(/\D/g, '');
+    if (phone) {
+      if (!customerMap[phone]) {
+        customerMap[phone] = {
+          name: o.customer.name,
+          phone: o.customer.phone,
+          email: o.customer.email,
+          ordersCount: 0,
+          totalSpent: 0,
+          lastOrderDate: o.date,
+          orders: []
+        };
+      }
+      customerMap[phone].ordersCount += 1;
+      if (o.paymentStatus === 'PAID') {
+        customerMap[phone].totalSpent += o.total;
+      }
+      customerMap[phone].orders.push(o);
+    }
+  });
+  const customerList = Object.values(customerMap);
 
   const filteredProducts = products.filter((p) =>
     p.title.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -342,6 +442,14 @@ export default function AdminDashboard() {
             >
               <Eye className="w-4 h-4 text-amber-400" />
               <span>Preview Live Store</span>
+            </button>
+            <button
+              onClick={seedDefaultCatalog}
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 border border-emerald-300"
+              title="Upload and restore all initial 10 products (mixers, cooktop, cashews, almonds) permanently into Supabase Cloud"
+            >
+              <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Seed Cloud Catalog</span>
             </button>
             <button
               onClick={resetToDemoData}
@@ -465,6 +573,30 @@ export default function AdminDashboard() {
           </button>
 
           <button
+            onClick={() => setActiveTab('customers')}
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+              activeTab === 'customers'
+                ? 'border-amber-600 text-amber-700'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Customers List ({customerList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('feedbacks')}
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+              activeTab === 'feedbacks'
+                ? 'border-amber-600 text-amber-700'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Feedback & Support ({feedbacks.length})</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('settings')}
             className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
               activeTab === 'settings'
@@ -472,8 +604,8 @@ export default function AdminDashboard() {
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Vizag Store & Delivery Rules</span>
+            <Store className="w-4 h-4" />
+            <span>Vizag Store & Categories</span>
           </button>
         </div>
 
@@ -492,17 +624,58 @@ export default function AdminDashboard() {
 
               {/* Status Filter */}
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {['All', 'Placed', 'Packed', 'Completed'].map((filter) => (
+                {['All', 'Placed', 'Packed', 'Ready for Pickup', 'Completed', 'Cancelled'].map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setOrderFilter(filter)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
                       orderFilter === filter
                         ? 'bg-slate-900 text-white'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
                     {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Order Search & Date Filter Bar (Handles 100+ Orders easily) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              {/* Search Bar */}
+              <div className="sm:col-span-2 relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Instant Search: Enter Order ID (e.g. VH-1024), Customer Mobile, or Name..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-amber-500 font-semibold"
+                />
+                {orderSearch && (
+                  <button
+                    onClick={() => setOrderSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Date Filter (Today / Tomorrow / All) */}
+              <div className="flex items-center justify-end gap-1.5 bg-white p-1 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-400 uppercase px-2">Pickup:</span>
+                {['All', 'Today', 'Tomorrow'].map((df) => (
+                  <button
+                    key={df}
+                    onClick={() => setOrderDateFilter(df)}
+                    className={`flex-1 py-1 px-2 text-[11px] font-bold rounded-lg transition-colors text-center ${
+                      orderDateFilter === df
+                        ? 'bg-amber-600 text-white shadow-2xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {df}
                   </button>
                 ))}
               </div>
@@ -537,10 +710,24 @@ export default function AdminDashboard() {
                           {order.id}
                         </td>
 
-                        {/* Customer */}
+                        {/* Customer & Pickup Verification OTP */}
                         <td className="py-3.5 px-3">
                           <p className="font-bold text-slate-900">{order.customer.name}</p>
                           <p className="text-slate-500 text-[11px]">📞 {order.customer.phone}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-300" title="Counter Handover OTP">
+                              OTP: <strong>{order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}</strong>
+                            </span>
+                            <a
+                              href={`https://wa.me/91${order.customer?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${order.customer.name}! VijayaHub Order #${order.id} update: Status is '${order.status}'. Verification OTP: ${order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200"
+                              title="Send WhatsApp update to customer"
+                            >
+                              WA Alert
+                            </a>
+                          </div>
                         </td>
 
                         {/* Fulfillment */}
@@ -596,24 +783,56 @@ export default function AdminDashboard() {
                           </div>
                         </td>
 
-                        {/* Order Status Controller */}
+                        {/* Order Status Controller (Forward-Only Progression) */}
                         <td className="py-3.5 px-3">
                           <select
                             value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                            disabled={order.status === 'Completed' || order.status === 'Cancelled'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'Completed') {
+                                setOtpVerificationModal({
+                                  isOpen: true,
+                                  order: order,
+                                  enteredOtp: '',
+                                  error: ''
+                                });
+                              } else {
+                                updateOrderStatus(order.id, val);
+                              }
+                            }}
                             className={`border rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-hidden ${
                               order.status === 'Cancelled'
-                                ? 'bg-rose-50 border-rose-300 text-rose-800'
+                                ? 'bg-rose-50 border-rose-300 text-rose-800 opacity-80 cursor-not-allowed'
                                 : order.status === 'Completed'
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 cursor-not-allowed'
+                                : order.status === 'Ready for Pickup'
+                                ? 'bg-amber-50 border-amber-300 text-amber-800'
+                                : order.status === 'Packed'
+                                ? 'bg-sky-50 border-sky-300 text-sky-800'
                                 : 'bg-white border-slate-300 text-slate-800'
                             }`}
                           >
-                            <option value="Placed">Placed</option>
-                            <option value="Packed">Packed</option>
-                            <option value="Ready for Pickup">Ready for Pickup</option>
-                            <option value="Completed">Completed / Collected</option>
-                            <option value="Cancelled">Cancel & Restock</option>
+                            <option value="Placed" disabled={order.status !== 'Placed'}>
+                              1. Placed
+                            </option>
+                            <option
+                              value="Packed"
+                              disabled={
+                                order.status === 'Ready for Pickup' ||
+                                order.status === 'Completed'
+                              }
+                            >
+                              2. Packed
+                            </option>
+                            <option
+                              value="Ready for Pickup"
+                              disabled={order.status === 'Completed'}
+                            >
+                              3. Ready for Pickup
+                            </option>
+                            <option value="Completed">4. Completed / Collected</option>
+                            <option value="Cancelled">⚠️ Cancel & Restock</option>
                           </select>
                         </td>
 
@@ -820,7 +1039,165 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 3: STORE & PICKUP RULES */}
+        {/* TAB 3: REGISTERED CUSTOMERS DIRECTORY */}
+        {activeTab === 'customers' && (
+          <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Customer Directory & Order History ({customerList.length} Customers)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  View customers who have placed store pickup orders, their total spend, and contact numbers.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-3">Customer Name</th>
+                    <th className="py-3 px-3">Mobile Number</th>
+                    <th className="py-3 px-3">Total Orders</th>
+                    <th className="py-3 px-3">Total Value (Paid)</th>
+                    <th className="py-3 px-3">Last Order Date</th>
+                    <th className="py-3 px-3 text-right">Quick Contact</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {customerList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        No customer orders recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    customerList.map((cust) => (
+                      <tr key={cust.phone} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-3 font-bold text-slate-900">
+                          {cust.name}
+                        </td>
+                        <td className="py-3.5 px-3 font-mono font-bold text-slate-700">
+                          📞 {cust.phone}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="bg-slate-100 text-slate-800 font-extrabold text-xs px-2.5 py-0.5 rounded-full">
+                            {cust.ordersCount} orders
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 font-extrabold text-emerald-700">
+                          ₹{cust.totalSpent.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3.5 px-3 text-slate-500 text-[11px]">
+                          {cust.lastOrderDate ? new Date(cust.lastOrderDate).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <a
+                            href={`https://wa.me/91${cust.phone.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(cust.name)},%20this%20is%20VijayaHub%20Dwaraka%20Nagar%20store`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[11px] border border-emerald-200 transition"
+                          >
+                            WhatsApp
+                          </a>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: CUSTOMER SUPPORT TICKETS & FEEDBACK */}
+        {activeTab === 'feedbacks' && (
+          <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Customer Reviews, Inquiries & Complaints ({feedbacks.length})
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Real-time feedback submitted by shoppers from the customer storefront.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Customer & Contact</th>
+                    <th className="py-3 px-3">Type</th>
+                    <th className="py-3 px-3">Rating / Order ID</th>
+                    <th className="py-3 px-3">Message / Complaint</th>
+                    <th className="py-3 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {feedbacks.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        No feedback or complaints submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    feedbacks.map((fb) => (
+                      <tr key={fb.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
+                          {new Date(fb.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <p className="font-bold text-slate-900">{fb.customer_name}</p>
+                          <p className="text-slate-500 font-mono text-[11px]">📞 {fb.customer_phone}</p>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className={`inline-block font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            fb.type === 'complaint'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                              : fb.type === 'order_help'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          }`}>
+                            {fb.type}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          {fb.type === 'review' && (
+                            <span className="font-bold text-amber-700">⭐ {fb.rating}/5</span>
+                          )}
+                          {fb.order_id && (
+                            <span className="font-mono font-bold text-slate-700 block text-[11px]">
+                              Order #{fb.order_id}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-3 max-w-sm text-slate-700 leading-relaxed font-medium">
+                          {fb.message}
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <a
+                            href={`https://wa.me/91${fb.customer_phone.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(fb.customer_name)},%20this%20is%20VijayaHub%20support%20regarding%20your%20feedback`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-[11px] transition shadow-2xs"
+                          >
+                            Resolve / Chat
+                          </a>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: STORE & CATEGORY RULES */}
         {activeTab === 'settings' && (
           <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 space-y-6">
             <div>
@@ -865,10 +1242,247 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               </div>
+
+              {/* Dynamic Category Management */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 md:col-span-2 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900">
+                      Storefront Product Categories ({categories.length})
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Create custom categories (e.g. "Gift Hampers", "Festive Specials", "Raw Spices") without writing any code!
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setShowAddCategoryInput(!showAddCategoryInput)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create New Category</span>
+                  </button>
+                </div>
+
+                {showAddCategoryInput && (
+                  <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 animate-in fade-in duration-150">
+                    <input
+                      type="text"
+                      placeholder="e.g. Diwali Gift Hampers, Organic Seeds, Cookware..."
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      className="flex-1 px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-hidden font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newCategoryName.trim()) return;
+                        if (categories.includes(newCategoryName.trim())) {
+                          alert('Category already exists!');
+                          return;
+                        }
+                        setCategories([...categories, newCategoryName.trim()]);
+                        setNewCategoryName('');
+                        setShowAddCategoryInput(false);
+                      }}
+                      className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
+                    >
+                      Save Category
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCategoryInput(false)}
+                      className="p-2 text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Categories Badge List */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {categories.map((cat) => (
+                    <div
+                      key={cat}
+                      className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-800"
+                    >
+                      <span>{cat}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        ({products.filter((p) => p.category === cat).length} items)
+                      </span>
+                      {cat !== 'Kitchen Appliances' && cat !== 'Dry Fruits & Nuts' && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete category "${cat}"?`)) {
+                              setCategories(categories.filter((c) => c !== cat));
+                            }
+                          }}
+                          className="text-slate-400 hover:text-rose-600 transition"
+                          title="Remove category"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* COUNTER PICKUP OTP VERIFICATION MODAL (PREVENTS FALSE HANDOVERS) */}
+      {otpVerificationModal.isOpen && otpVerificationModal.order && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="relative bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-400/30">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-white">
+                    Counter Handover Authentication
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    Order #{otpVerificationModal.order.id} • {otpVerificationModal.order.customer?.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' })
+                }
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 space-y-1.5">
+                <p className="font-bold text-slate-900">
+                  🛡️ Store Security Protocol:
+                </p>
+                <p className="text-slate-600 leading-relaxed text-[11px]">
+                  Ask the customer to open their <strong>'My Orders'</strong> tracking screen or show the WhatsApp message to give you their <strong>4-Digit Pickup OTP</strong>.
+                </p>
+              </div>
+
+              {/* OTP Input Form */}
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800 text-center uppercase tracking-wider">
+                  Enter Customer's 4-Digit Pickup OTP
+                </label>
+                <div className="flex justify-center">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    autoFocus
+                    placeholder="• • • •"
+                    value={otpVerificationModal.enteredOtp}
+                    onChange={(e) =>
+                      setOtpVerificationModal((prev) => ({
+                        ...prev,
+                        enteredOtp: e.target.value.replace(/\D/g, ''),
+                        error: ''
+                      }))
+                    }
+                    className="w-48 py-3 text-center text-3xl font-mono font-black tracking-widest bg-slate-50 border-2 border-slate-300 focus:border-amber-600 rounded-2xl focus:bg-white focus:outline-hidden"
+                  />
+                </div>
+                {otpVerificationModal.error && (
+                  <p className="text-xs text-rose-600 font-bold text-center animate-shake">
+                    {otpVerificationModal.error}
+                  </p>
+                )}
+              </div>
+
+              {/* Order Reference details */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div className="flex justify-between">
+                  <span>Customer Phone:</span>
+                  <strong className="text-slate-900 font-mono">
+                    {otpVerificationModal.order.customer?.phone}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Order Total:</span>
+                  <strong className="text-emerald-700 font-bold">
+                    ₹{otpVerificationModal.order.total?.toLocaleString('en-IN')} (PAID)
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Items:</span>
+                  <span className="font-medium text-slate-800">
+                    {otpVerificationModal.order.items?.length || 1} items
+                  </span>
+                </div>
+              </div>
+
+              {/* Submit Handover Button */}
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const expected = (
+                      otpVerificationModal.order.pickupOtp ||
+                      otpVerificationModal.order.pickup_otp ||
+                      otpVerificationModal.order.customer?.pickupOtp ||
+                      '4821'
+                    )
+                      .toString()
+                      .trim();
+                    const entered = otpVerificationModal.enteredOtp.trim();
+
+                    if (!entered || entered.length < 4) {
+                      setOtpVerificationModal((prev) => ({
+                        ...prev,
+                        error: 'Please enter the complete 4-digit OTP.'
+                      }));
+                      return;
+                    }
+
+                    if (entered !== expected) {
+                      setOtpVerificationModal((prev) => ({
+                        ...prev,
+                        error: `❌ OTP Mismatch! "${entered}" is incorrect. Ask customer to re-check their screen.`
+                      }));
+                      return;
+                    }
+
+                    // OTP Verified! Complete order
+                    updateOrderStatus(otpVerificationModal.order.id, 'Completed');
+                    setOtpVerificationModal({
+                      isOpen: false,
+                      order: null,
+                      enteredOtp: '',
+                      error: ''
+                    });
+                  }}
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verify OTP & Mark Order Collected</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' })
+                  }
+                  className="w-full py-2 text-xs font-bold text-slate-400 hover:text-slate-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ADD / EDIT PRODUCT MODAL */}
       {isProductModalOpen && (
@@ -909,8 +1523,11 @@ export default function AdminDashboard() {
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-medium"
                   >
-                    <option value="Kitchen Appliances">Kitchen Appliances</option>
-                    <option value="Fresh Dry Fruits">Fresh Dry Fruits</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -926,8 +1543,8 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Price, MRP, Stock */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Price, MRP, Stock & Per-Customer Limit */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Selling Price (₹) *</label>
                   <input
@@ -952,7 +1569,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Initial Stock Units *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Stock Units *</label>
                   <input
                     type="number"
                     required
@@ -960,6 +1577,20 @@ export default function AdminDashboard() {
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1" title="0 means unlimited; >0 restricts purchase per mobile number for special offers">
+                    Max / User Limit
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0 = No limit"
+                    value={formData.maxPerCustomer}
+                    onChange={(e) => setFormData({ ...formData, maxPerCustomer: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-bold text-rose-600"
                   />
                 </div>
               </div>

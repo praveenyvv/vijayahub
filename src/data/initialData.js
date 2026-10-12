@@ -295,6 +295,7 @@ export const INITIAL_ORDERS = [
     paymentMethod: 'Direct UPI (9392624326@idfcfirst)',
     paymentStatus: 'PAID',
     upiRefNumber: '428901234567',
+    pickupOtp: '4821',
     status: 'Ready for Pickup', // 'Placed', 'Ready for Pickup', 'Completed', 'Cancelled'
     notes: 'Customer will collect by 6:30 PM.'
   },
