@@ -18,8 +18,14 @@ export default function InvoiceModal() {
   });
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white">
-      <div className="relative bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden print:shadow-none print:rounded-none animate-in fade-in zoom-in-95 duration-200">
+    <div
+      onClick={() => setInvoiceOrder(null)}
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden print:shadow-none print:rounded-none animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Top Control Bar (Hidden on print) */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">

@@ -74,16 +74,51 @@ export default function FeedbackSupportModal({ isOpen, onClose }) {
     }
   };
 
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (isOpen) {
+      window.history.pushState({ modal: 'feedback-modal' }, '');
+      const handlePopState = () => {
+        handleResetAndClose();
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isOpen]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleResetAndClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const handleResetAndClose = () => {
     setSubmittedSuccess(false);
     setMessage('');
     setOrderId('');
-    onClose();
+    if (window.history.state?.modal === 'feedback-modal') {
+      window.history.back();
+    } else {
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-white rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div
+      onClick={handleResetAndClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Sticky Header */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">

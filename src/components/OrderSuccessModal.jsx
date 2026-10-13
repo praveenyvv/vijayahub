@@ -77,11 +77,50 @@ export default function OrderSuccessModal() {
         day: 'numeric',
         month: 'short'
       })
-    : 'Within 24 Hours';
+    : null;
+
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (completedOrder) {
+      window.history.pushState({ modal: 'order-success' }, '');
+      const handlePopState = () => {
+        handleCloseModal();
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [completedOrder?.id]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && completedOrder) {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [completedOrder]);
+
+  const handleCloseModal = () => {
+    if (window.history.state?.modal === 'order-success') {
+      window.history.back();
+    } else {
+      setCompletedOrder(null);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div
+      onClick={handleCloseModal}
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className={`p-6 text-center relative text-white ${
           isCancelled ? 'bg-rose-700' : 'bg-gradient-to-r from-emerald-600 to-teal-700'

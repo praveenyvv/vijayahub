@@ -20,15 +20,54 @@ export default function CartDrawer() {
   const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - cartSubtotal);
   const deliveryProgress = Math.min(100, (cartSubtotal / freeDeliveryThreshold) * 100);
 
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (isCartOpen) {
+      window.history.pushState({ modal: 'cart-drawer' }, '');
+      const handlePopState = () => {
+        setIsCartOpen(false);
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isCartOpen]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isCartOpen) {
+        handleCloseCart();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCartOpen]);
+
+  const handleCloseCart = () => {
+    if (window.history.state?.modal === 'cart-drawer') {
+      window.history.back();
+    } else {
+      setIsCartOpen(false);
+    }
+  };
+
   const handleProceedToCheckout = () => {
-    setIsCartOpen(false);
+    handleCloseCart();
     setIsCheckoutOpen(true);
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs">
-      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+    <div
+      onClick={handleCloseCart}
+      className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs flex justify-end"
+    >
+      <div className="max-w-full flex">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-screen max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 h-full"
+        >
           {/* Header */}
           <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
@@ -39,7 +78,7 @@ export default function CartDrawer() {
               </span>
             </div>
             <button
-              onClick={() => setIsCartOpen(false)}
+              onClick={handleCloseCart}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
             >
               <X className="w-5 h-5" />

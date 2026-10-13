@@ -13,19 +13,33 @@ export default function Navbar() {
     setSearchQuery,
     storeInfo,
     currentUser,
+    orders,
     setIsAuthModalOpen,
     setIsFeedbackModalOpen
   } = useStore();
 
+  // Active live orders for current customer
+  const cleanPhone = currentUser?.phone?.replace(/\D/g, '');
+  const now = new Date();
+  const activeOrdersCount = cleanPhone
+    ? (orders || []).filter(
+        (o) =>
+          o.customer?.phone?.replace(/\D/g, '') === cleanPhone &&
+          o.status !== 'Completed' &&
+          o.status !== 'Cancelled' &&
+          (!o.expiresAt || new Date(o.expiresAt) > now)
+      ).length
+    : 0;
+
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs w-full overflow-x-clip">
       {/* Top Notification Bar for Vizag Local Focus */}
-      <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-orange-600 text-white text-xs sm:text-sm py-1.5 px-4">
+      <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-orange-600 text-white text-xs sm:text-sm py-1.5 px-3 sm:px-4">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-medium">
+          <div className="flex items-center gap-1.5 font-medium truncate">
             <MapPin className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-            <span>
-              Direct-to-Consumer Central Hub: Free Store Pickup in <strong>Dwaraka Nagar, Vizag</strong> — Collect Within 24 Hours!
+            <span className="truncate">
+              Direct Hub: Free Store Pickup in <strong>Dwaraka Nagar, Vizag</strong>
             </span>
           </div>
           <div className="hidden md:flex items-center gap-4 text-xs text-amber-100">
@@ -45,22 +59,22 @@ export default function Navbar() {
       </div>
 
       {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={() => setIsAdminMode(false)}
-            className="flex items-center gap-2.5 text-left group focus:outline-hidden"
+            className="flex items-center gap-2 sm:gap-2.5 text-left group focus:outline-hidden"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/20 font-black text-xl tracking-tighter group-hover:scale-105 transition-transform">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/20 font-black text-lg sm:text-xl tracking-tighter group-hover:scale-105 transition-transform shrink-0">
               VH
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 font-sans">
+              <div className="flex items-center gap-1">
+                <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-slate-900 font-sans">
                   Vijaya<span className="text-amber-600">Hub</span>
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-sm">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-1 sm:px-1.5 py-0.5 rounded-sm">
                   Vizag
                 </span>
               </div>
@@ -94,32 +108,32 @@ export default function Navbar() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 px-4">
-            <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-semibold text-amber-800">
-              <ShieldCheck className="w-4 h-4 text-amber-600" />
-              Owner Mode: Manage Products, Stock & Vizag Orders
+          <div className="flex-1 px-2 sm:px-4 truncate">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-amber-50 border border-amber-200 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold text-amber-800 truncate">
+              <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
+              <span className="truncate">Owner Mode: Stock & Orders</span>
             </div>
           </div>
         )}
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Admin Toggle / Handover Switch */}
           {isAdminMode ? (
             <button
               onClick={() => setIsAdminMode(false)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-xs"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-xs shrink-0"
             >
-              <Store className="w-4 h-4 text-amber-400" />
-              <span>Back to Storefront</span>
+              <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span>Storefront</span>
             </button>
           ) : (
             <button
               onClick={() => setIsAdminMode(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-2xs"
-              title="Switch to Store Owner Admin Dashboard to add products, adjust stock, and handle orders"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs shrink-0"
+              title="Store Owner Admin"
             >
-              <ShieldCheck className="w-4 h-4 text-amber-600" />
+              <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
               <span className="hidden sm:inline">Owner</span> Admin
             </button>
           )}
@@ -128,7 +142,7 @@ export default function Navbar() {
           {!isAdminMode && (
             <button
               onClick={() => setIsFeedbackModalOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors shadow-2xs"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors shadow-2xs shrink-0"
               title="Customer care & Feedback"
             >
               <MessageSquare className="w-4 h-4 text-amber-600" />
@@ -140,27 +154,33 @@ export default function Navbar() {
           {!isAdminMode && (
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors shadow-2xs"
+              className="relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-colors shadow-2xs shrink-0"
               title="Track pickup orders & view tax invoices"
             >
-              <User className="w-4 h-4 text-amber-600" />
+              <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
               <span className="hidden sm:inline">
-                {currentUser ? currentUser.name.split(' ')[0] : 'My Orders'}
+                {currentUser ? currentUser.name.split(' ')[0] : 'Orders'}
               </span>
+              {activeOrdersCount > 0 && (
+                <span className="flex items-center gap-1 bg-amber-600 text-white font-extrabold text-[10px] px-1.5 py-0.5 rounded-full shadow-xs animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                  <span>{activeOrdersCount} Live</span>
+                </span>
+              )}
             </button>
           )}
 
-          {/* Cart Button (Always visible on storefront) */}
+          {/* Cart Button (Always visible on storefront, pinned right) */}
           {!isAdminMode && (
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-sm shadow-amber-600/30 transition-all text-xs sm:text-sm"
+              className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-sm shadow-amber-600/30 transition-all text-xs sm:text-sm shrink-0"
               aria-label="Shopping Cart"
             >
-              <ShoppingBag className="w-4 h-4" />
+              <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Cart</span>
               {cartItemCount > 0 && (
-                <span className="bg-white text-amber-700 font-extrabold text-xs px-1.5 py-0.2 rounded-full shadow-xs">
+                <span className="bg-white text-amber-700 font-extrabold text-[11px] sm:text-xs px-1.5 py-0.2 rounded-full shadow-xs">
                   {cartItemCount}
                 </span>
               )}

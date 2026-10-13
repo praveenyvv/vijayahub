@@ -212,9 +212,48 @@ export default function CheckoutModal() {
     }, 1000);
   };
 
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (isCheckoutOpen) {
+      window.history.pushState({ modal: 'checkout-modal' }, '');
+      const handlePopState = () => {
+        handleCloseCheckout();
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isCheckoutOpen]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isCheckoutOpen) {
+        handleCloseCheckout();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCheckoutOpen]);
+
+  const handleCloseCheckout = () => {
+    if (window.history.state?.modal === 'checkout-modal') {
+      window.history.back();
+    } else {
+      setIsCheckoutOpen(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="relative bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div
+      onClick={handleCloseCheckout}
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* Sticky Header with Always-Visible Close Button */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">

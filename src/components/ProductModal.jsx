@@ -62,19 +62,58 @@ export default function ProductModal() {
     setActiveImageIdx((prev) => (prev === productImages.length - 1 ? 0 : prev + 1));
   };
 
+  // Handle hardware / gesture browser back button so it closes modal rather than exiting website
+  React.useEffect(() => {
+    if (selectedProduct) {
+      window.history.pushState({ modal: 'product-modal' }, '');
+      const handlePopState = () => {
+        setSelectedProduct(null);
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [selectedProduct?.id]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleCloseModal = () => {
+    if (window.history.state?.modal === 'product-modal') {
+      window.history.back();
+    } else {
+      setSelectedProduct(null);
+    }
+  };
+
   const handleAddAndOpenCart = () => {
     addToCart(selectedProduct, qty, selectedVariant);
-    setSelectedProduct(null);
+    handleCloseModal();
     setIsCartOpen(true);
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div
+      onClick={handleCloseModal}
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-t-3xl sm:rounded-3xl max-w-3xl w-full max-h-[90vh] sm:max-h-[88vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+      >
         {/* Close Button */}
         <button
-          onClick={() => setSelectedProduct(null)}
-          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
+          onClick={handleCloseModal}
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shadow-xs"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />

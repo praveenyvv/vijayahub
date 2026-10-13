@@ -13,7 +13,7 @@ import PolicyModal from './components/PolicyModal';
 import UserAccountModal from './components/UserAccountModal';
 import FeedbackSupportModal from './components/FeedbackSupportModal';
 import Footer from './components/Footer';
-import { Sparkles, Store, Clock, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight } from 'lucide-react';
+import { Sparkles, Store, Clock, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight, X, ShoppingBag } from 'lucide-react';
 
 function StorefrontContent() {
   const {
@@ -27,10 +27,15 @@ function StorefrontContent() {
     setSelectedCategory,
     isFeedbackModalOpen,
     setIsFeedbackModalOpen,
-    isCloudLoaded
+    isCloudLoaded,
+    cartItemCount,
+    cartSubtotal,
+    isCartOpen,
+    setIsCartOpen
   } = useStore();
 
   const [activePolicy, setActivePolicy] = useState(null);
+  const [dismissedOrderIds, setDismissedOrderIds] = useState(new Set());
 
   // Active ongoing pickup order for current shopper (e.g. Placed, Packed, Ready for Pickup)
   const cleanUserPhone = currentUser?.phone?.replace(/\D/g, '');
@@ -45,6 +50,19 @@ function StorefrontContent() {
             (!o.expiresAt || new Date(o.expiresAt) > now)
         )
       : null;
+
+  const isOrderDismissed = activeOrder && dismissedOrderIds.has(activeOrder.id);
+  const showActiveOrderBanner = activeOrder && !isOrderDismissed;
+
+  // Auto-dismiss floating banner after 12 seconds so it doesn't permanently disturb shopper
+  React.useEffect(() => {
+    if (activeOrder && !dismissedOrderIds.has(activeOrder.id)) {
+      const timer = setTimeout(() => {
+        setDismissedOrderIds((prev) => new Set([...prev, activeOrder.id]));
+      }, 12000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeOrder?.id]);
 
   // Filter products by Category & Search
   const filteredProducts = products.filter((p) => {
@@ -223,12 +241,12 @@ function StorefrontContent() {
 
       <Footer onOpenPolicy={(policy) => setActivePolicy(policy)} />
 
-      {/* Live Ongoing Pickup Order Pop-Up Bar (Blinkit style bottom notification) */}
-      {activeOrder && (
-        <div className="fixed bottom-18 sm:bottom-5 left-4 right-4 sm:left-auto sm:right-56 z-30 max-w-md animate-in slide-in-from-bottom duration-300">
+      {/* Live Ongoing Pickup Order Pop-Up Bar (With close/dismiss button and auto-hide) */}
+      {showActiveOrderBanner && (
+        <div className="fixed bottom-20 sm:bottom-5 left-4 right-4 sm:left-auto sm:right-56 z-30 max-w-md animate-in slide-in-from-bottom duration-300">
           <div
             onClick={() => setIsAuthModalOpen(true)}
-            className="cursor-pointer bg-slate-900 text-white rounded-2xl p-3.5 shadow-2xl border border-amber-500/40 flex items-center justify-between gap-3 hover:bg-slate-800 transition-all hover:scale-[1.02]"
+            className="cursor-pointer bg-slate-900 text-white rounded-2xl p-3.5 shadow-2xl border border-amber-500/40 flex items-center justify-between gap-3 hover:bg-slate-800 transition-all hover:scale-[1.01]"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold shadow-md animate-pulse">
@@ -257,11 +275,47 @@ function StorefrontContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-amber-400 font-extrabold shrink-0 pl-2 border-l border-slate-700">
-              <span>Track</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-slate-700">
+              <div className="flex items-center gap-1 text-xs text-amber-400 font-extrabold">
+                <span>Track</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDismissedOrderIds((prev) => new Set([...prev, activeOrder.id]));
+                }}
+                className="w-6 h-6 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors ml-1"
+                title="Dismiss notification"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Sticky Bottom Mobile Cart Bar (Zomato/Blinkit style - Never lose track of cart on mobile) */}
+      {cartItemCount > 0 && !isCartOpen && (
+        <div className="fixed bottom-3 left-3 right-3 z-30 md:hidden animate-in slide-in-from-bottom duration-200">
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="w-full bg-slate-900 text-white p-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="bg-amber-500 text-slate-950 font-black text-xs px-2.5 py-1 rounded-full">
+                {cartItemCount} item{cartItemCount > 1 ? 's' : ''}
+              </span>
+              <span className="text-sm font-extrabold text-white">
+                ₹{cartSubtotal.toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+              <span>View Cart</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </button>
         </div>
       )}
 
