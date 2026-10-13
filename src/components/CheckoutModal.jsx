@@ -20,14 +20,79 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useStore } from '../context/StoreContext';
 import confetti from 'canvas-confetti';
 
-const PICKUP_SLOTS = [
-  { id: 'today-now', label: 'Today: Immediate (Ready in 30 mins • 10 AM - 1 PM)' },
-  { id: 'today-afternoon', label: 'Today: Afternoon (1:00 PM - 5:00 PM)' },
-  { id: 'today-evening', label: 'Today: Evening (5:00 PM - 8:30 PM)' },
-  { id: 'tomorrow-morning', label: 'Tomorrow: Morning (10:00 AM - 1:00 PM)' },
-  { id: 'tomorrow-afternoon', label: 'Tomorrow: Afternoon (1:00 PM - 5:00 PM)' },
-  { id: 'tomorrow-evening', label: 'Tomorrow: Evening (5:00 PM - 8:30 PM)' }
-];
+export function getAvailablePickupSlots() {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+
+  const slots = [];
+
+  // Express / Immediate ready time (estimated 30 minutes from now)
+  const readyTime = new Date(now.getTime() + 30 * 60000);
+  const readyTimeFormatted = readyTime.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  // Operating Hours: 10:00 AM to 8:30 PM
+  const isOperatingHours = (currentHour >= 10 && currentHour < 20) || (currentHour === 20 && currentMinutes <= 30);
+  const isEarlyMorning = currentHour < 10;
+
+  if (isOperatingHours) {
+    slots.push({
+      id: 'today-express',
+      label: `Today: Express (Ready in 30 mins • by ${readyTimeFormatted})`,
+      tag: 'Fastest'
+    });
+  } else if (isEarlyMorning) {
+    slots.push({
+      id: 'today-morning-opening',
+      label: `Today: Hub Opening (Ready by 10:30 AM)`,
+      tag: 'First Batch'
+    });
+  }
+
+  // Today scheduled windows (only future windows that haven't ended yet)
+  // Morning: 10:00 AM - 1:00 PM (cutoff 12:30 PM)
+  if (currentHour < 12 || (currentHour === 12 && currentMinutes <= 30)) {
+    slots.push({
+      id: 'today-morning',
+      label: 'Today: Morning Slot (10:00 AM - 1:00 PM)'
+    });
+  }
+
+  // Afternoon: 1:00 PM - 5:00 PM (cutoff 4:30 PM)
+  if (currentHour < 16 || (currentHour === 16 && currentMinutes <= 30)) {
+    slots.push({
+      id: 'today-afternoon',
+      label: 'Today: Afternoon Slot (1:00 PM - 5:00 PM)'
+    });
+  }
+
+  // Evening: 5:00 PM - 8:30 PM (cutoff 8:00 PM)
+  if (currentHour < 20) {
+    slots.push({
+      id: 'today-evening',
+      label: 'Today: Evening Slot (5:00 PM - 8:30 PM)'
+    });
+  }
+
+  // Tomorrow windows (always available for customer's 24-hr pickup window)
+  slots.push({
+    id: 'tomorrow-morning',
+    label: 'Tomorrow: Morning Slot (10:00 AM - 1:00 PM)'
+  });
+  slots.push({
+    id: 'tomorrow-afternoon',
+    label: 'Tomorrow: Afternoon Slot (1:00 PM - 5:00 PM)'
+  });
+  slots.push({
+    id: 'tomorrow-evening',
+    label: 'Tomorrow: Evening Slot (5:00 PM - 8:30 PM)'
+  });
+
+  return slots;
+}
 
 export default function CheckoutModal() {
   const {
@@ -43,13 +108,28 @@ export default function CheckoutModal() {
     products
   } = useStore();
 
+  const availablePickupSlots = React.useMemo(() => getAvailablePickupSlots(), [isCheckoutOpen]);
+
   // Multi-step checkout: 'details' -> 'payment' -> finish
   const [step, setStep] = useState('details'); // 'details' or 'payment'
 
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
   const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
-  const [pickupSlot, setPickupSlot] = useState(PICKUP_SLOTS[0].label);
+  const [pickupSlot, setPickupSlot] = useState(() => {
+    const initialSlots = getAvailablePickupSlots();
+    return initialSlots[0]?.label || 'Today: Express (Ready in 30 mins)';
+  });
+
+  // Keep pickupSlot up to date whenever checkout opens
+  React.useEffect(() => {
+    if (isCheckoutOpen) {
+      const currentSlots = getAvailablePickupSlots();
+      if (!currentSlots.some((s) => s.label === pickupSlot)) {
+        setPickupSlot(currentSlots[0]?.label || 'Today: Express (Ready in 30 mins)');
+      }
+    }
+  }, [isCheckoutOpen]);
 
   React.useEffect(() => {
     if (currentUser) {
@@ -342,7 +422,7 @@ export default function CheckoutModal() {
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {PICKUP_SLOTS.map((slot) => (
+                {availablePickupSlots.map((slot) => (
                   <button
                     key={slot.id}
                     type="button"
@@ -353,9 +433,16 @@ export default function CheckoutModal() {
                         : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <CalendarCheck className={`w-3.5 h-3.5 ${pickupSlot === slot.label ? 'text-amber-600' : 'text-slate-400'}`} />
-                      <span className="line-clamp-1">{slot.label}</span>
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CalendarCheck className={`w-3.5 h-3.5 shrink-0 ${pickupSlot === slot.label ? 'text-amber-600' : 'text-slate-400'}`} />
+                        <span className="line-clamp-1">{slot.label}</span>
+                      </div>
+                      {slot.tag && (
+                        <span className="shrink-0 bg-amber-200 text-amber-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                          {slot.tag}
+                        </span>
+                      )}
                     </div>
                   </button>
                 ))}

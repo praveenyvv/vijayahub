@@ -663,6 +663,53 @@ export function StoreProvider({ children }) {
     }
   };
 
+  // Regenerate fresh OTP for an order (e.g. if lost or requested resend)
+  const regenerateOrderOtp = (orderId) => {
+    const freshOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            pickupOtp: freshOtp,
+            customer: {
+              ...o.customer,
+              pickupOtp: freshOtp
+            }
+          };
+        }
+        return o;
+      })
+    );
+
+    if (completedOrder && completedOrder.id === orderId) {
+      setCompletedOrder((prev) => ({
+        ...prev,
+        pickupOtp: freshOtp,
+        customer: {
+          ...prev.customer,
+          pickupOtp: freshOtp
+        }
+      }));
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('orders')
+        .update({
+          pickup_otp: freshOtp,
+          customer: {
+            ...orders.find((o) => o.id === orderId)?.customer,
+            pickupOtp: freshOtp
+          }
+        })
+        .eq('id', orderId)
+        .then();
+    }
+
+    return freshOtp;
+  };
+
   // Submit Customer Feedback or Support Ticket
   const submitFeedback = async (feedbackData) => {
     const newFeedback = {
@@ -857,6 +904,7 @@ export function StoreProvider({ children }) {
         clearCart,
         placeOrder,
         updateOrderStatus,
+        regenerateOrderOtp,
         cancelOrderAndRestock,
         addProduct,
         updateProduct,

@@ -59,6 +59,7 @@ export default function AdminDashboard() {
     updateProduct,
     deleteProduct,
     updateOrderStatus,
+    regenerateOrderOtp,
     setInvoiceOrder,
     resetToDemoData,
     storeInfo,
@@ -750,8 +751,9 @@ export default function AdminDashboard() {
                           <p className="font-bold text-slate-900">{order.customer.name}</p>
                           <p className="text-slate-500 text-[11px]">📞 {order.customer.phone}</p>
                           <div className="flex items-center gap-1.5 mt-1">
-                            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-300" title="Counter Handover OTP">
-                              OTP: <strong>{order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}</strong>
+                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200" title="Security protected: Customer must provide their 4-digit code at counter">
+                              <ShieldCheck className="w-3 h-3 text-amber-600" />
+                              OTP Protected
                             </span>
                             <a
                               href={`https://wa.me/91${order.customer?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${order.customer.name}! VijayaHub Order #${order.id} update: Status is '${order.status}'. Verification OTP: ${order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}`)}`}
@@ -1456,6 +1458,56 @@ export default function AdminDashboard() {
                     {otpVerificationModal.order.items?.length || 1} items
                   </span>
                 </div>
+              </div>
+
+              {/* Customer can't find or lost OTP? Resend & Escalation Actions */}
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+                <p className="font-bold text-slate-700 text-[11px]">
+                  Customer can't find or lost their code?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={`https://wa.me/91${otpVerificationModal.order.customer?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${otpVerificationModal.order.customer?.name}! Here is your VijayaHub Order #${otpVerificationModal.order.id} Pickup Verification OTP: *${otpVerificationModal.order.pickupOtp || otpVerificationModal.order.pickup_otp || otpVerificationModal.order.customer?.pickupOtp || '4821'}*. Please show this code at the Dwaraka Nagar counter to collect your order.`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <span>📲 Resend via WhatsApp</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newCode = regenerateOrderOtp(otpVerificationModal.order.id);
+                      setOtpVerificationModal((prev) => ({
+                        ...prev,
+                        order: {
+                          ...prev.order,
+                          pickupOtp: newCode
+                        },
+                        enteredOtp: '',
+                        error: `✅ Fresh OTP ${newCode} generated & updated on customer screen!`
+                      }));
+                    }}
+                    className="flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <span>🔄 Regenerate Fresh OTP</span>
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const confirmManager = window.confirm(
+                      `⚠️ MANAGER ESCALATION OVERRIDE:\n\nConfirm that you have physically verified ${otpVerificationModal.order.customer?.name}'s government ID card (Aadhaar / Driving License) or order invoice proof?\n\nClick OK to authorize handover.`
+                    );
+                    if (confirmManager) {
+                      updateOrderStatus(otpVerificationModal.order.id, 'Completed');
+                      setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' });
+                    }
+                  }}
+                  className="w-full text-center text-[10px] text-slate-500 hover:text-slate-800 underline font-medium pt-1"
+                >
+                  ⚡ Manager Override (Physical Photo ID Verified)
+                </button>
               </div>
 
               {/* Submit Handover Button */}
