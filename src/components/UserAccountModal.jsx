@@ -24,7 +24,6 @@ export default function UserAccountModal() {
     isAuthModalOpen,
     setIsAuthModalOpen,
     orders,
-    regenerateOrderOtp,
     setInvoiceOrder,
     storeInfo
   } = useStore();
@@ -335,16 +334,6 @@ export default function UserAccountModal() {
                               <p className="text-[11px] text-slate-600 font-medium">
                                 Show this secret code to the store counter executive:
                               </p>
-                              {order.status !== 'Completed' && (
-                                <button
-                                  type="button"
-                                  onClick={() => regenerateOrderOtp(order.id)}
-                                  className="text-[10px] font-bold text-amber-700 hover:text-amber-900 underline mt-1 inline-flex items-center gap-1 cursor-pointer"
-                                  title="Generate a fresh OTP code for this order"
-                                >
-                                  🔄 Refresh My Code
-                                </button>
-                              )}
                             </div>
                             <div className="bg-amber-600 text-white font-mono font-black text-lg px-3 py-1 rounded-lg tracking-widest shadow-xs">
                               {order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}

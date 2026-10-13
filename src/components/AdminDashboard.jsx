@@ -59,7 +59,6 @@ export default function AdminDashboard() {
     updateProduct,
     deleteProduct,
     updateOrderStatus,
-    regenerateOrderOtp,
     setInvoiceOrder,
     resetToDemoData,
     storeInfo,
@@ -1460,51 +1459,23 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Customer can't find or lost OTP? Regenerate & Escalation Actions */}
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
-                <p className="font-bold text-slate-700 text-xs">
-                  Customer lost or didn't receive their code?
-                </p>
-                <p className="text-[11px] text-slate-500 leading-snug">
-                  Click below to generate a new code. It will update immediately on the customer's phone without exposing the numbers to store staff.
-                </p>
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newCode = regenerateOrderOtp(otpVerificationModal.order.id);
-                      setOtpVerificationModal((prev) => ({
-                        ...prev,
-                        order: {
-                          ...prev.order,
-                          pickupOtp: newCode
-                        },
-                        enteredOtp: '',
-                        error: `✅ Fresh secret OTP generated and updated on customer's phone! Ask customer to check their screen.`
-                      }));
-                    }}
-                    className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <span>🔄 Regenerate Secret OTP on Customer Screen</span>
-                  </button>
-                </div>
-                <div className="pt-1 border-t border-slate-200/60">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const confirmManager = window.confirm(
-                        `⚠️ MANAGER ESCALATION OVERRIDE:\n\nConfirm that you have physically verified ${otpVerificationModal.order.customer?.name}'s government ID card (Aadhaar / Driving License) or order invoice proof?\n\nClick OK to authorize handover.`
-                      );
-                      if (confirmManager) {
-                        updateOrderStatus(otpVerificationModal.order.id, 'Completed');
-                        setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' });
-                      }
-                    }}
-                    className="w-full text-center text-[10px] text-slate-500 hover:text-slate-800 underline font-semibold pt-1 cursor-pointer"
-                  >
-                    ⚡ Manager Override (Physical Govt Photo ID Verified)
-                  </button>
-                </div>
+              {/* Optional Manager Escalation fallback */}
+              <div className="pt-1 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const confirmManager = window.confirm(
+                      `⚠️ MANAGER ESCALATION OVERRIDE:\n\nConfirm that you have physically verified ${otpVerificationModal.order.customer?.name}'s government ID card (Aadhaar / Driving License) or order invoice proof?\n\nClick OK to authorize handover.`
+                    );
+                    if (confirmManager) {
+                      updateOrderStatus(otpVerificationModal.order.id, 'Completed');
+                      setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' });
+                    }
+                  }}
+                  className="text-[10px] text-slate-400 hover:text-slate-700 underline font-medium cursor-pointer"
+                >
+                  Need manager override? (Physical Photo ID Verified)
+                </button>
               </div>
 
               {/* Submit Handover Button */}
