@@ -66,11 +66,7 @@ export default function CheckoutModal() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const handleCloseCheckout = () => {
-    if (window.history.state?.modal === 'checkout-modal') {
-      window.history.back();
-    } else {
-      setIsCheckoutOpen(false);
-    }
+    setIsCheckoutOpen(false);
   };
 
   // Handle hardware / gesture browser back button
@@ -78,7 +74,7 @@ export default function CheckoutModal() {
     if (isCheckoutOpen) {
       window.history.pushState({ modal: 'checkout-modal' }, '');
       const handlePopState = () => {
-        handleCloseCheckout();
+        setIsCheckoutOpen(false);
       };
       window.addEventListener('popstate', handlePopState);
       return () => {

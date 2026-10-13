@@ -39,11 +39,7 @@ export default function ProductModal() {
   }, [selectedProduct?.id]);
 
   const handleCloseModal = () => {
-    if (window.history.state?.modal === 'product-modal') {
-      window.history.back();
-    } else {
-      setSelectedProduct(null);
-    }
+    setSelectedProduct(null);
   };
 
   // Handle hardware / gesture browser back button so it closes modal rather than exiting website

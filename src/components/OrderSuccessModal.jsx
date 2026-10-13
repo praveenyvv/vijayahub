@@ -41,11 +41,7 @@ export default function OrderSuccessModal() {
   }, [completedOrder]);
 
   const handleCloseModal = () => {
-    if (window.history.state?.modal === 'order-success') {
-      window.history.back();
-    } else {
-      setCompletedOrder(null);
-    }
+    setCompletedOrder(null);
   };
 
   // Handle hardware / gesture browser back button

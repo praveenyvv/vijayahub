@@ -15,15 +15,11 @@ export default function CartDrawer() {
   } = useStore();
 
   const handleCloseCart = () => {
-    if (window.history.state?.modal === 'cart-drawer') {
-      window.history.back();
-    } else {
-      setIsCartOpen(false);
-    }
+    setIsCartOpen(false);
   };
 
   const handleProceedToCheckout = () => {
-    handleCloseCart();
+    setIsCartOpen(false);
     setIsCheckoutOpen(true);
   };
 

@@ -43,11 +43,7 @@ export default function FeedbackSupportModal({ isOpen, onClose }) {
     setSubmittedSuccess(false);
     setMessage('');
     setOrderId('');
-    if (window.history.state?.modal === 'feedback-modal') {
-      window.history.back();
-    } else {
-      onClose();
-    }
+    onClose();
   };
 
   // Handle hardware / gesture browser back button

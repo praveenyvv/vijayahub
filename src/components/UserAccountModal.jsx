@@ -34,11 +34,7 @@ export default function UserAccountModal() {
   const [isNewUser, setIsNewUser] = useState(false);
 
   const handleCloseModal = () => {
-    if (window.history.state?.modal === 'auth-modal') {
-      window.history.back();
-    } else {
-      setIsAuthModalOpen(false);
-    }
+    setIsAuthModalOpen(false);
   };
 
   // Handle hardware / gesture browser back button
