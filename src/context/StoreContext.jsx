@@ -269,6 +269,7 @@ export function StoreProvider({ children }) {
         { event: 'UPDATE', schema: 'public', table: 'orders' },
         (payload) => {
           const updated = payload.new;
+          const updatedOtp = updated.pickup_otp ?? updated.customer?.pickupOtp;
           setOrders((prev) =>
             prev.map((o) =>
               o.id === updated.id
@@ -276,7 +277,9 @@ export function StoreProvider({ children }) {
                     ...o,
                     ...updated,
                     status: updated.status,
-                    paymentStatus: updated.payment_status ?? updated.paymentStatus
+                    paymentStatus: updated.payment_status ?? updated.paymentStatus,
+                    pickupOtp: updatedOtp || o.pickupOtp,
+                    customer: updated.customer ? { ...o.customer, ...updated.customer } : o.customer
                   }
                 : o
             )
@@ -663,46 +666,57 @@ export function StoreProvider({ children }) {
     }
   };
 
-  // Regenerate fresh OTP for an order (e.g. if lost or requested resend)
+  // Regenerate fresh OTP for an order (e.g. if customer requested a refresh)
   const regenerateOrderOtp = (orderId) => {
     const freshOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    setOrders((prev) =>
-      prev.map((o) => {
+
+    const currentOrder = orders.find((o) => o.id === orderId);
+    const updatedCustomer = {
+      ...(currentOrder?.customer || {}),
+      pickupOtp: freshOtp
+    };
+
+    setOrders((prev) => {
+      const updatedList = prev.map((o) => {
         if (o.id === orderId) {
           return {
             ...o,
             pickupOtp: freshOtp,
-            customer: {
-              ...o.customer,
-              pickupOtp: freshOtp
-            }
+            pickup_otp: freshOtp,
+            customer: updatedCustomer
           };
         }
         return o;
-      })
-    );
+      });
+      safeSetStorage(ORDERS_STORAGE_KEY, updatedList);
+      return updatedList;
+    });
 
     if (completedOrder && completedOrder.id === orderId) {
       setCompletedOrder((prev) => ({
         ...prev,
         pickupOtp: freshOtp,
-        customer: {
-          ...prev.customer,
-          pickupOtp: freshOtp
-        }
+        pickup_otp: freshOtp,
+        customer: updatedCustomer
       }));
     }
 
     if (isSupabaseConfigured && supabase) {
+      // 1. Update customer JSONB payload (guaranteed to exist in schema)
       supabase
         .from('orders')
-        .update({
-          pickup_otp: freshOtp,
-          customer: {
-            ...orders.find((o) => o.id === orderId)?.customer,
-            pickupOtp: freshOtp
+        .update({ customer: updatedCustomer })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Supabase customer update note:', error.message);
           }
-        })
+        });
+
+      // 2. Also try updating pickup_otp column if it exists in table schema
+      supabase
+        .from('orders')
+        .update({ pickup_otp: freshOtp })
         .eq('id', orderId)
         .then();
     }

@@ -756,11 +756,11 @@ export default function AdminDashboard() {
                               OTP Protected
                             </span>
                             <a
-                              href={`https://wa.me/91${order.customer?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${order.customer.name}! VijayaHub Order #${order.id} update: Status is '${order.status}'. Verification OTP: ${order.pickupOtp || order.pickup_otp || order.customer?.pickupOtp || '4821'}`)}`}
+                              href={`https://wa.me/91${order.customer?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${order.customer.name}! VijayaHub Order #${order.id} update: Status is '${order.status}'. Please open your VijayaHub 'My Orders' screen to view your counter pickup OTP and collect your order at Dwaraka Nagar Hub.`)}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200"
-                              title="Send WhatsApp update to customer"
+                              title="Send WhatsApp pickup reminder to customer"
                             >
                               WA Alert
                             </a>
@@ -1460,20 +1460,15 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Customer can't find or lost OTP? Resend & Escalation Actions */}
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
-                <p className="font-bold text-slate-700 text-[11px]">
-                  Customer can't find or lost their code?
+              {/* Customer can't find or lost OTP? Regenerate & Escalation Actions */}
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                <p className="font-bold text-slate-700 text-xs">
+                  Customer lost or didn't receive their code?
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href={`https://wa.me/91${otpVerificationModal.order.customer?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${otpVerificationModal.order.customer?.name}! Here is your VijayaHub Order #${otpVerificationModal.order.id} Pickup Verification OTP: *${otpVerificationModal.order.pickupOtp || otpVerificationModal.order.pickup_otp || otpVerificationModal.order.customer?.pickupOtp || '4821'}*. Please show this code at the Dwaraka Nagar counter to collect your order.`)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 transition-colors"
-                  >
-                    <span>📲 Resend via WhatsApp</span>
-                  </a>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Click below to generate a new code. It will update immediately on the customer's phone without exposing the numbers to store staff.
+                </p>
+                <div className="pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -1485,29 +1480,31 @@ export default function AdminDashboard() {
                           pickupOtp: newCode
                         },
                         enteredOtp: '',
-                        error: `✅ Fresh OTP ${newCode} generated & updated on customer screen!`
+                        error: `✅ Fresh secret OTP generated and updated on customer's phone! Ask customer to check their screen.`
                       }));
                     }}
-                    className="flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 transition-colors"
+                    className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <span>🔄 Regenerate Fresh OTP</span>
+                    <span>🔄 Regenerate Secret OTP on Customer Screen</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const confirmManager = window.confirm(
-                      `⚠️ MANAGER ESCALATION OVERRIDE:\n\nConfirm that you have physically verified ${otpVerificationModal.order.customer?.name}'s government ID card (Aadhaar / Driving License) or order invoice proof?\n\nClick OK to authorize handover.`
-                    );
-                    if (confirmManager) {
-                      updateOrderStatus(otpVerificationModal.order.id, 'Completed');
-                      setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' });
-                    }
-                  }}
-                  className="w-full text-center text-[10px] text-slate-500 hover:text-slate-800 underline font-medium pt-1"
-                >
-                  ⚡ Manager Override (Physical Photo ID Verified)
-                </button>
+                <div className="pt-1 border-t border-slate-200/60">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const confirmManager = window.confirm(
+                        `⚠️ MANAGER ESCALATION OVERRIDE:\n\nConfirm that you have physically verified ${otpVerificationModal.order.customer?.name}'s government ID card (Aadhaar / Driving License) or order invoice proof?\n\nClick OK to authorize handover.`
+                      );
+                      if (confirmManager) {
+                        updateOrderStatus(otpVerificationModal.order.id, 'Completed');
+                        setOtpVerificationModal({ isOpen: false, order: null, enteredOtp: '', error: '' });
+                      }
+                    }}
+                    className="w-full text-center text-[10px] text-slate-500 hover:text-slate-800 underline font-semibold pt-1 cursor-pointer"
+                  >
+                    ⚡ Manager Override (Physical Govt Photo ID Verified)
+                  </button>
+                </div>
               </div>
 
               {/* Submit Handover Button */}
