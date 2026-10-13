@@ -38,6 +38,39 @@ export default function ProductModal() {
     }
   }, [selectedProduct?.id]);
 
+  const handleCloseModal = () => {
+    if (window.history.state?.modal === 'product-modal') {
+      window.history.back();
+    } else {
+      setSelectedProduct(null);
+    }
+  };
+
+  // Handle hardware / gesture browser back button so it closes modal rather than exiting website
+  React.useEffect(() => {
+    if (selectedProduct) {
+      window.history.pushState({ modal: 'product-modal' }, '');
+      const handlePopState = () => {
+        setSelectedProduct(null);
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [selectedProduct?.id]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && selectedProduct) {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedProduct]);
+
   if (!selectedProduct) return null;
 
   const productImages =
@@ -60,39 +93,6 @@ export default function ProductModal() {
   const handleNextImage = (e) => {
     e.stopPropagation();
     setActiveImageIdx((prev) => (prev === productImages.length - 1 ? 0 : prev + 1));
-  };
-
-  // Handle hardware / gesture browser back button so it closes modal rather than exiting website
-  React.useEffect(() => {
-    if (selectedProduct) {
-      window.history.pushState({ modal: 'product-modal' }, '');
-      const handlePopState = () => {
-        setSelectedProduct(null);
-      };
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [selectedProduct?.id]);
-
-  // Handle Escape key to close
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        handleCloseModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleCloseModal = () => {
-    if (window.history.state?.modal === 'product-modal') {
-      window.history.back();
-    } else {
-      setSelectedProduct(null);
-    }
   };
 
   const handleAddAndOpenCart = () => {

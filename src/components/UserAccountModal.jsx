@@ -33,6 +33,39 @@ export default function UserAccountModal() {
   const [loginName, setLoginName] = useState('');
   const [isNewUser, setIsNewUser] = useState(false);
 
+  const handleCloseModal = () => {
+    if (window.history.state?.modal === 'auth-modal') {
+      window.history.back();
+    } else {
+      setIsAuthModalOpen(false);
+    }
+  };
+
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (isAuthModalOpen) {
+      window.history.pushState({ modal: 'auth-modal' }, '');
+      const handlePopState = () => {
+        setIsAuthModalOpen(false);
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isAuthModalOpen]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isAuthModalOpen) {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAuthModalOpen]);
+
   if (!isAuthModalOpen) return null;
 
   // Filter orders matching the logged in user phone or current guest session
@@ -63,39 +96,6 @@ export default function UserAccountModal() {
     setCurrentUser(null);
     setLoginPhone('');
     setLoginName('');
-  };
-
-  // Handle hardware / gesture browser back button
-  React.useEffect(() => {
-    if (isAuthModalOpen) {
-      window.history.pushState({ modal: 'auth-modal' }, '');
-      const handlePopState = () => {
-        setIsAuthModalOpen(false);
-      };
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [isAuthModalOpen]);
-
-  // Handle Escape key to close
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isAuthModalOpen) {
-        handleCloseModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAuthModalOpen]);
-
-  const handleCloseModal = () => {
-    if (window.history.state?.modal === 'auth-modal') {
-      window.history.back();
-    } else {
-      setIsAuthModalOpen(false);
-    }
   };
 
   return (

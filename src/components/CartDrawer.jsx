@@ -14,11 +14,18 @@ export default function CartDrawer() {
     storeInfo
   } = useStore();
 
-  if (!isCartOpen) return null;
+  const handleCloseCart = () => {
+    if (window.history.state?.modal === 'cart-drawer') {
+      window.history.back();
+    } else {
+      setIsCartOpen(false);
+    }
+  };
 
-  const freeDeliveryThreshold = storeInfo.freeDeliveryThreshold;
-  const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - cartSubtotal);
-  const deliveryProgress = Math.min(100, (cartSubtotal / freeDeliveryThreshold) * 100);
+  const handleProceedToCheckout = () => {
+    handleCloseCart();
+    setIsCheckoutOpen(true);
+  };
 
   // Handle hardware / gesture browser back button
   React.useEffect(() => {
@@ -45,18 +52,11 @@ export default function CartDrawer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isCartOpen]);
 
-  const handleCloseCart = () => {
-    if (window.history.state?.modal === 'cart-drawer') {
-      window.history.back();
-    } else {
-      setIsCartOpen(false);
-    }
-  };
+  if (!isCartOpen) return null;
 
-  const handleProceedToCheckout = () => {
-    handleCloseCart();
-    setIsCheckoutOpen(true);
-  };
+  const freeDeliveryThreshold = storeInfo.freeDeliveryThreshold;
+  const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - cartSubtotal);
+  const deliveryProgress = Math.min(100, (cartSubtotal / freeDeliveryThreshold) * 100);
 
   return (
     <div

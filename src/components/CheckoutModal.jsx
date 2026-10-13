@@ -65,6 +65,39 @@ export default function CheckoutModal() {
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  const handleCloseCheckout = () => {
+    if (window.history.state?.modal === 'checkout-modal') {
+      window.history.back();
+    } else {
+      setIsCheckoutOpen(false);
+    }
+  };
+
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (isCheckoutOpen) {
+      window.history.pushState({ modal: 'checkout-modal' }, '');
+      const handlePopState = () => {
+        handleCloseCheckout();
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isCheckoutOpen]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isCheckoutOpen) {
+        handleCloseCheckout();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCheckoutOpen]);
+
   if (!isCheckoutOpen) return null;
 
   const upiId = storeInfo.upiId || '9392624326@idfcfirst';
@@ -210,39 +243,6 @@ export default function CheckoutModal() {
       // Reset step
       setStep('details');
     }, 1000);
-  };
-
-  // Handle hardware / gesture browser back button
-  React.useEffect(() => {
-    if (isCheckoutOpen) {
-      window.history.pushState({ modal: 'checkout-modal' }, '');
-      const handlePopState = () => {
-        handleCloseCheckout();
-      };
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [isCheckoutOpen]);
-
-  // Handle Escape key to close
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isCheckoutOpen) {
-        handleCloseCheckout();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCheckoutOpen]);
-
-  const handleCloseCheckout = () => {
-    if (window.history.state?.modal === 'checkout-modal') {
-      window.history.back();
-    } else {
-      setIsCheckoutOpen(false);
-    }
   };
 
   return (

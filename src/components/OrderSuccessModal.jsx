@@ -40,6 +40,39 @@ export default function OrderSuccessModal() {
     return () => clearInterval(interval);
   }, [completedOrder]);
 
+  const handleCloseModal = () => {
+    if (window.history.state?.modal === 'order-success') {
+      window.history.back();
+    } else {
+      setCompletedOrder(null);
+    }
+  };
+
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (completedOrder) {
+      window.history.pushState({ modal: 'order-success' }, '');
+      const handlePopState = () => {
+        handleCloseModal();
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [completedOrder?.id]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && completedOrder) {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [completedOrder]);
+
   if (!completedOrder) return null;
 
   const isCancelled = completedOrder.status === 'Cancelled';
@@ -78,39 +111,6 @@ export default function OrderSuccessModal() {
         month: 'short'
       })
     : null;
-
-  // Handle hardware / gesture browser back button
-  React.useEffect(() => {
-    if (completedOrder) {
-      window.history.pushState({ modal: 'order-success' }, '');
-      const handlePopState = () => {
-        handleCloseModal();
-      };
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [completedOrder?.id]);
-
-  // Handle Escape key to close
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && completedOrder) {
-        handleCloseModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [completedOrder]);
-
-  const handleCloseModal = () => {
-    if (window.history.state?.modal === 'order-success') {
-      window.history.back();
-    } else {
-      setCompletedOrder(null);
-    }
-  };
 
   return (
     <div

@@ -39,6 +39,42 @@ export default function FeedbackSupportModal({ isOpen, onClose }) {
     }
   }, [currentUser]);
 
+  const handleResetAndClose = () => {
+    setSubmittedSuccess(false);
+    setMessage('');
+    setOrderId('');
+    if (window.history.state?.modal === 'feedback-modal') {
+      window.history.back();
+    } else {
+      onClose();
+    }
+  };
+
+  // Handle hardware / gesture browser back button
+  React.useEffect(() => {
+    if (isOpen) {
+      window.history.pushState({ modal: 'feedback-modal' }, '');
+      const handlePopState = () => {
+        handleResetAndClose();
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isOpen]);
+
+  // Handle Escape key to close
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleResetAndClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -71,42 +107,6 @@ export default function FeedbackSupportModal({ isOpen, onClose }) {
       alert('Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Handle hardware / gesture browser back button
-  React.useEffect(() => {
-    if (isOpen) {
-      window.history.pushState({ modal: 'feedback-modal' }, '');
-      const handlePopState = () => {
-        handleResetAndClose();
-      };
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [isOpen]);
-
-  // Handle Escape key to close
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        handleResetAndClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
-
-  const handleResetAndClose = () => {
-    setSubmittedSuccess(false);
-    setMessage('');
-    setOrderId('');
-    if (window.history.state?.modal === 'feedback-modal') {
-      window.history.back();
-    } else {
-      onClose();
     }
   };
 

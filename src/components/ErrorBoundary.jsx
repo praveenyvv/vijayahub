@@ -17,6 +17,7 @@ export default class ErrorBoundary extends React.Component {
   handleReload = () => {
     try {
       localStorage.removeItem('vijayahub_products_v1');
+      sessionStorage.clear();
     } catch {
       // ignore
     }
@@ -35,8 +36,14 @@ export default class ErrorBoundary extends React.Component {
               Vijaya<span className="text-amber-600">Hub</span> Storefront Recovered
             </h1>
             <p className="text-xs text-slate-600 leading-relaxed">
-              We detected a temporary storage or network issue and safely prevented a crash. Click below to refresh your session smoothly.
+              We detected a temporary storage or session issue and safely restored the store. Click below to continue browsing.
             </p>
+            {this.state.error && (
+              <details className="text-left bg-slate-100 p-2.5 rounded-xl text-[10px] text-slate-600 font-mono overflow-auto max-h-32">
+                <summary className="cursor-pointer text-slate-500 font-bold mb-1">Technical Details</summary>
+                {this.state.error.toString()}
+              </details>
+            )}
             <div className="pt-2 flex flex-col gap-2">
               <button
                 onClick={this.handleReload}
@@ -46,11 +53,11 @@ export default class ErrorBoundary extends React.Component {
               </button>
               <button
                 onClick={() => {
-                  this.setState({ hasError: false });
+                  this.setState({ hasError: false, error: null });
                 }}
                 className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
               >
-                Try Re-rendering
+                Continue to Store
               </button>
             </div>
           </div>
