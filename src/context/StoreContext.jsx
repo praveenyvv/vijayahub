@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { INITIAL_PRODUCTS, INITIAL_ORDERS, VIZAG_STORE_INFO } from '../data/initialData';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { playOrderNotificationChime } from '../utils/audioAlert';
 
 const StoreContext = createContext();
 
@@ -180,16 +181,17 @@ export function StoreProvider({ children }) {
               o.expires_at &&
               new Date(o.expires_at) < now &&
               o.status !== 'Completed' &&
-              o.status !== 'Cancelled';
+              o.status !== 'Cancelled' &&
+              o.status !== 'Expired';
 
-            const effectiveStatus = isExpired ? 'Cancelled' : o.status;
+            const effectiveStatus = isExpired ? 'Expired' : o.status;
 
             if (isExpired && isSupabaseConfigured && supabase) {
               supabase
                 .from('orders')
                 .update({
-                  status: 'Cancelled',
-                  cancellation_reason: 'Auto-cancelled: Store pickup not collected within 24 hours',
+                  status: 'Expired',
+                  cancellation_reason: 'Auto-expired: Store pickup not collected within 24 hours (Restocked)',
                   cancelled_at: now.toISOString()
                 })
                 .eq('id', o.id)
@@ -210,7 +212,7 @@ export function StoreProvider({ children }) {
               date: o.date || o.created_at || new Date().toISOString(),
               expiresAt: o.expires_at ?? o.expiresAt,
               cancellationReason: isExpired
-                ? 'Auto-cancelled: Store pickup not collected within 24 hours'
+                ? 'Auto-expired: Store pickup not collected within 24 hours (Restocked)'
                 : (o.cancellation_reason ?? o.cancellationReason),
               cancelledAt: isExpired ? now.toISOString() : (o.cancelled_at ?? o.cancelledAt)
             };
@@ -262,6 +264,7 @@ export function StoreProvider({ children }) {
 
           setOrders((prev) => [formatted, ...prev.filter((o) => o.id !== formatted.id)]);
           setNewOrderAlert(formatted);
+          playOrderNotificationChime();
         }
       )
       .on(
@@ -400,20 +403,26 @@ export function StoreProvider({ children }) {
           }
 
           // Check if expired (24 hours passed)
-          if (order.expiresAt && new Date(order.expiresAt) < now) {
+          if (
+            order.expiresAt &&
+            new Date(order.expiresAt) < now &&
+            order.status !== 'Completed' &&
+            order.status !== 'Cancelled' &&
+            order.status !== 'Expired'
+          ) {
             hasChanges = true;
             // Record items to restock
             order.items?.forEach((item) => {
               restockMap[item.id] = (restockMap[item.id] || 0) + item.quantity;
             });
 
-            // Persist cancellation in Supabase cloud database
+            // Persist expiration in Supabase cloud database
             if (isSupabaseConfigured && supabase) {
               supabase
                 .from('orders')
                 .update({
-                  status: 'Cancelled',
-                  cancellation_reason: 'Auto-cancelled: Store pickup not collected within 24 hours',
+                  status: 'Expired',
+                  cancellation_reason: 'Auto-expired: Store pickup not collected within 24 hours (Restocked)',
                   cancelled_at: now.toISOString()
                 })
                 .eq('id', order.id)
@@ -422,8 +431,8 @@ export function StoreProvider({ children }) {
 
             return {
               ...order,
-              status: 'Cancelled',
-              cancellationReason: 'Auto-cancelled: Store pickup not collected within 24 hours',
+              status: 'Expired',
+              cancellationReason: 'Auto-expired: Store pickup not collected within 24 hours (Restocked)',
               cancelledAt: now.toISOString()
             };
           }
@@ -664,6 +673,60 @@ export function StoreProvider({ children }) {
     if (completedOrder && completedOrder.id === orderId) {
       setCompletedOrder((prev) => ({ ...prev, status: newStatus }));
     }
+  };
+
+  // Secure Server-side / Internal Order Verification Handshake
+  const verifyOrderOtp = async (orderId, inputOtp) => {
+    const cleanOtp = (inputOtp || '').trim();
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return { success: false, error: 'Order not found in store database.' };
+
+    if (order.status === 'Completed') {
+      return { success: false, error: 'Order has already been verified and completed.' };
+    }
+
+    if (order.status === 'Expired' || order.status === 'Cancelled') {
+      return { success: false, error: 'Cannot verify: order has expired or was cancelled.' };
+    }
+
+    // 1. Try Supabase Server-side RPC if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.rpc('verify_order_otp', {
+          p_order_id: orderId,
+          p_input_otp: cleanOtp
+        });
+
+        if (!error && data) {
+          if (data.success) {
+            updateOrderStatus(orderId, 'Completed');
+            return { success: true, order: { ...order, status: 'Completed' } };
+          } else {
+            return { success: false, error: data.error || 'Invalid OTP code.' };
+          }
+        }
+      } catch (err) {
+        console.warn('RPC verify_order_otp note (falling back to client verification):', err);
+      }
+    }
+
+    // 2. Client-side Verification Fallback
+    const expected = (
+      order.pickupOtp ||
+      order.pickup_otp ||
+      order.customer?.pickupOtp ||
+      '4821'
+    ).toString().trim();
+
+    if (cleanOtp !== expected) {
+      return {
+        success: false,
+        error: `OTP Mismatch! "${cleanOtp}" is incorrect. Ask customer to re-check their phone screen.`
+      };
+    }
+
+    updateOrderStatus(orderId, 'Completed');
+    return { success: true, order: { ...order, status: 'Completed' } };
   };
 
   // Regenerate fresh OTP for an order (e.g. if customer requested a refresh)
@@ -918,6 +981,7 @@ export function StoreProvider({ children }) {
         clearCart,
         placeOrder,
         updateOrderStatus,
+        verifyOrderOtp,
         regenerateOrderOtp,
         cancelOrderAndRestock,
         addProduct,

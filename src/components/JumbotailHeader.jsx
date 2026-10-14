@@ -21,6 +21,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import StaffPasscodeModal from './StaffPasscodeModal';
 
 const SEARCH_PLACEHOLDERS = [
   'search for "Cashews"',
@@ -54,6 +55,21 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isListening, setIsListening] = useState(false);
   const [isBarcodeSimOpen, setIsBarcodeSimOpen] = useState(false);
+  const [isStaffPasscodeOpen, setIsStaffPasscodeOpen] = useState(false);
+
+  const handleOpenAdminPortal = () => {
+    if (isAdminMode) {
+      sessionStorage.removeItem('vijayahub_staff_auth');
+      setIsAdminMode(false);
+      return;
+    }
+    const isAuthed = sessionStorage.getItem('vijayahub_staff_auth') === 'true';
+    if (isAuthed) {
+      setIsAdminMode(true);
+    } else {
+      setIsStaffPasscodeOpen(true);
+    }
+  };
 
   // Rotating search placeholder like Jumbotail
   useEffect(() => {
@@ -234,7 +250,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             {/* Admin Switch (Desktop shortcut) */}
             <button
               type="button"
-              onClick={() => setIsAdminMode(!isAdminMode)}
+              onClick={handleOpenAdminPortal}
               className="hidden lg:flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg bg-emerald-900/80 hover:bg-emerald-900 text-amber-300 border border-emerald-700/60 ml-2"
             >
               <Store className="w-3.5 h-3.5" />
@@ -473,12 +489,12 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                 </p>
               </div>
 
-              {/* Admin Mode Switch */}
+              {/* Admin Mode Switch (RBAC Protected) */}
               <button
                 type="button"
                 onClick={() => {
-                  setIsAdminMode(!isAdminMode);
                   setIsDrawerOpen(false);
+                  handleOpenAdminPortal();
                 }}
                 className="w-full mt-2 flex items-center justify-between p-3 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors"
               >
@@ -539,6 +555,16 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
           </div>
         </div>
       )}
+
+      {/* Counter Staff RBAC Authentication Modal */}
+      <StaffPasscodeModal
+        isOpen={isStaffPasscodeOpen}
+        onClose={() => setIsStaffPasscodeOpen(false)}
+        onSuccess={() => {
+          setIsStaffPasscodeOpen(false);
+          setIsAdminMode(true);
+        }}
+      />
     </>
   );
 }

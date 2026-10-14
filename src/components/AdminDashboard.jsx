@@ -59,6 +59,7 @@ export default function AdminDashboard() {
     updateProduct,
     deleteProduct,
     updateOrderStatus,
+    verifyOrderOtp,
     setInvoiceOrder,
     resetToDemoData,
     storeInfo,
@@ -472,11 +473,14 @@ export default function AdminDashboard() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
-              onClick={() => setIsAdminMode(false)}
+              onClick={() => {
+                sessionStorage.removeItem('vijayahub_staff_auth');
+                setIsAdminMode(false);
+              }}
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-xs"
             >
               <Eye className="w-4 h-4 text-amber-400" />
-              <span>Preview Live Store</span>
+              <span>Exit Counter Mode (Log Out)</span>
             </button>
             <button
               onClick={seedDefaultCatalog}
@@ -659,7 +663,7 @@ export default function AdminDashboard() {
 
               {/* Status Filter */}
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {['All', 'Placed', 'Packed', 'Ready for Pickup', 'Completed', 'Cancelled'].map((filter) => (
+                {['All', 'Placed', 'Packed', 'Ready for Pickup', 'Completed', 'Expired', 'Cancelled'].map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setOrderFilter(filter)}
@@ -819,57 +823,86 @@ export default function AdminDashboard() {
                           </div>
                         </td>
 
-                        {/* Order Status Controller (Forward-Only Progression) */}
+                        {/* Order Status Controller & Workflow Actions (PM Spec) */}
                         <td className="py-3.5 px-3">
-                          <select
-                            value={order.status}
-                            disabled={order.status === 'Completed' || order.status === 'Cancelled'}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === 'Completed') {
-                                setOtpVerificationModal({
-                                  isOpen: true,
-                                  order: order,
-                                  enteredOtp: '',
-                                  error: ''
-                                });
-                              } else {
-                                updateOrderStatus(order.id, val);
-                              }
-                            }}
-                            className={`border rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-hidden ${
-                              order.status === 'Cancelled'
-                                ? 'bg-rose-50 border-rose-300 text-rose-800 opacity-80 cursor-not-allowed'
-                                : order.status === 'Completed'
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 cursor-not-allowed'
-                                : order.status === 'Ready for Pickup'
-                                ? 'bg-amber-50 border-amber-300 text-amber-800'
-                                : order.status === 'Packed'
-                                ? 'bg-sky-50 border-sky-300 text-sky-800'
-                                : 'bg-white border-slate-300 text-slate-800'
-                            }`}
-                          >
-                            <option value="Placed" disabled={order.status !== 'Placed'}>
-                              1. Placed
-                            </option>
-                            <option
-                              value="Packed"
-                              disabled={
-                                order.status === 'Ready for Pickup' ||
-                                order.status === 'Completed'
-                              }
-                            >
-                              2. Packed
-                            </option>
-                            <option
-                              value="Ready for Pickup"
-                              disabled={order.status === 'Completed'}
-                            >
-                              3. Ready for Pickup
-                            </option>
-                            <option value="Completed">4. Completed / Collected</option>
-                            <option value="Cancelled">⚠️ Cancel & Restock</option>
-                          </select>
+                          <div className="space-y-1.5">
+                            {order.status === 'Placed' ? (
+                              <button
+                                type="button"
+                                onClick={() => updateOrderStatus(order.id, 'Packed')}
+                                className="w-full py-1.5 px-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold text-[11px] shadow-2xs flex items-center justify-center gap-1 transition"
+                              >
+                                <Package className="w-3 h-3" />
+                                <span>Mark as Packed</span>
+                              </button>
+                            ) : order.status === 'Packed' ? (
+                              <button
+                                type="button"
+                                onClick={() => updateOrderStatus(order.id, 'Ready for Pickup')}
+                                className="w-full py-1.5 px-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] shadow-2xs flex items-center justify-center gap-1 transition"
+                              >
+                                <Bell className="w-3 h-3" />
+                                <span>Ready for Pickup</span>
+                              </button>
+                            ) : order.status === 'Ready for Pickup' ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOtpVerificationModal({
+                                    isOpen: true,
+                                    order: order,
+                                    enteredOtp: '',
+                                    error: ''
+                                  })
+                                }
+                                className="w-full py-1.5 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-extrabold text-[11px] shadow-xs flex items-center justify-center gap-1 transition animate-pulse"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Hand Over Order</span>
+                              </button>
+                            ) : order.status === 'Completed' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[11px]">
+                                <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                <span>Completed</span>
+                              </span>
+                            ) : order.status === 'Expired' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded-md font-bold text-[10px]">
+                                <Clock className="w-3 h-3 text-rose-600" />
+                                <span>Expired (Restocked)</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-bold text-[10px]">
+                                <span>{order.status}</span>
+                              </span>
+                            )}
+
+                            {/* Dropdown for manual override / cancellation */}
+                            {order.status !== 'Completed' && order.status !== 'Expired' && order.status !== 'Cancelled' && (
+                              <select
+                                value={order.status}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === 'Completed') {
+                                    setOtpVerificationModal({
+                                      isOpen: true,
+                                      order: order,
+                                      enteredOtp: '',
+                                      error: ''
+                                    });
+                                  } else {
+                                    updateOrderStatus(order.id, val);
+                                  }
+                                }}
+                                className="w-full text-[10px] text-slate-500 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 font-medium"
+                              >
+                                <option value="Placed" disabled={order.status !== 'Placed'}>1. Placed</option>
+                                <option value="Packed" disabled={order.status === 'Ready for Pickup' || order.status === 'Completed'}>2. Packed</option>
+                                <option value="Ready for Pickup" disabled={order.status === 'Completed'}>3. Ready for Pickup</option>
+                                <option value="Completed">4. Completed (Verify OTP)</option>
+                                <option value="Cancelled">⚠️ Cancel & Restock</option>
+                              </select>
+                            )}
+                          </div>
                         </td>
 
                         {/* Invoice & View */}
@@ -1482,15 +1515,7 @@ export default function AdminDashboard() {
               <div className="space-y-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    const expected = (
-                      otpVerificationModal.order.pickupOtp ||
-                      otpVerificationModal.order.pickup_otp ||
-                      otpVerificationModal.order.customer?.pickupOtp ||
-                      '4821'
-                    )
-                      .toString()
-                      .trim();
+                  onClick={async () => {
                     const entered = otpVerificationModal.enteredOtp.trim();
 
                     if (!entered || entered.length < 4) {
@@ -1501,16 +1526,19 @@ export default function AdminDashboard() {
                       return;
                     }
 
-                    if (entered !== expected) {
+                    // Execute secure RPC / server-side verification handshake
+                    const res = await verifyOrderOtp(otpVerificationModal.order.id, entered);
+
+                    if (!res.success) {
                       setOtpVerificationModal((prev) => ({
                         ...prev,
-                        error: `❌ OTP Mismatch! "${entered}" is incorrect. Ask customer to re-check their screen.`
+                        error: res.error || `❌ OTP Mismatch! "${entered}" is incorrect. Ask customer to re-check their screen.`
                       }));
                       return;
                     }
 
-                    // OTP Verified! Complete order
-                    updateOrderStatus(otpVerificationModal.order.id, 'Completed');
+                    // OTP Verified! Auto-open GST Tax Invoice for counter staff
+                    setInvoiceOrder(otpVerificationModal.order);
                     setOtpVerificationModal({
                       isOpen: false,
                       order: null,

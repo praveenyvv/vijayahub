@@ -228,7 +228,7 @@ export default function UserAccountModal() {
                 </div>
               ) : (
                 userOrders.map((order) => {
-                  const isCancelled = order.status === 'Cancelled';
+                  const isCancelled = order.status === 'Cancelled' || order.status === 'Expired';
                   const isCompleted = order.status === 'Completed';
 
                   // Stepper statuses
@@ -253,14 +253,16 @@ export default function UserAccountModal() {
                             </span>
                             <span
                               className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                isCancelled
+                                order.status === 'Expired'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : isCancelled
                                   ? 'bg-rose-100 text-rose-800'
                                   : isCompleted
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'bg-amber-100 text-amber-900'
                               }`}
                             >
-                              {order.status}
+                              {order.status === 'Expired' ? 'Expired (24h Exceeded)' : order.status}
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 mt-0.5">
