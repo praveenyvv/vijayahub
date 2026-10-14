@@ -32,22 +32,23 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" || true
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Node Dependencies
         run: npm ci
 
-      - name: Build Web App & Sync to Capacitor
+      - name: Build Web App
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://fwepxfkxsfgiinyxqwrs.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3ZXB4Zmt4c2ZnaWlueXhxd3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1OTcwNDUsImV4cCI6MjEwNzE3MzA0NX0.1SC7sT0G0D79egLQOWFGk-Iwy1JtCGJqZULRIwIp_dM' }}
-        run: |
-          npm run build
-          npx cap sync android
+          VITE_SUPABASE_URL: "https://fwepxfkxsfgiinyxqwrs.supabase.co"
+          VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3ZXB4Zmt4c2ZnaWlueXhxd3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1OTcwNDUsImV4cCI6MjEwNzE3MzA0NX0.1SC7sT0G0D79egLQOWFGk-Iwy1JtCGJqZULRIwIp_dM"
+        run: npm run build
+
+      - name: Sync to Capacitor Android
+        run: npx cap sync android
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
