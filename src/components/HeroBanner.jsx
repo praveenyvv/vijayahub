@@ -6,10 +6,10 @@ export default function HeroBanner() {
   const { selectedCategory, setSelectedCategory, products, categories } = useStore();
 
   return (
-    <section className="bg-gradient-to-b from-amber-500/10 via-orange-500/5 to-transparent pt-6 pb-4 px-4 sm:px-6">
+    <section className="bg-gradient-to-b from-emerald-900/10 via-emerald-800/5 to-transparent pt-3 pb-2 px-3 sm:px-6">
       <div className="max-w-7xl mx-auto">
         {/* Main Banner Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white p-6 sm:p-10 shadow-xl border border-amber-500/20">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0d381c] via-[#154d28] to-slate-950 text-white p-5 sm:p-8 shadow-xl border border-emerald-600/30">
           {/* Subtle background glow */}
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/3 -mb-12 w-64 h-64 bg-orange-600/15 rounded-full blur-2xl pointer-events-none" />
@@ -80,9 +80,9 @@ export default function HeroBanner() {
 
             <button
               onClick={() => setSelectedCategory('All')}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 ${
                 selectedCategory === 'All'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                  ? 'bg-[#154d28] text-white shadow-md shadow-emerald-950/20'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -95,9 +95,9 @@ export default function HeroBanner() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 ${
                     selectedCategory === cat
-                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                      ? 'bg-[#154d28] text-white shadow-md shadow-emerald-950/20'
                       : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >

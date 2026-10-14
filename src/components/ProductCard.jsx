@@ -144,8 +144,8 @@ export default function ProductCard({ product }) {
                       }}
                       className={`py-1.5 px-0.5 rounded-lg text-center transition border ${
                         isSelected
-                          ? 'border-amber-600 bg-amber-600 text-white font-extrabold shadow-2xs'
-                          : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-amber-300 hover:bg-amber-50/50'
+                          ? 'border-[#154d28] bg-[#154d28] text-white font-extrabold shadow-2xs'
+                          : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/50'
                       }`}
                     >
                       <div className="text-[11px] font-bold leading-tight">{v.weight}</div>
@@ -235,7 +235,7 @@ export default function ProductCard({ product }) {
               className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs ${
                 isOutOfStock
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/25 active:scale-[0.98]'
+                  : 'bg-[#154d28] hover:bg-emerald-900 text-white shadow-emerald-950/20 active:scale-[0.98]'
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
