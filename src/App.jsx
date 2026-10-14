@@ -145,7 +145,7 @@ function StorefrontContent() {
         )}
 
         {/* Product Catalog Grid Header */}
-        <section className="max-w-7xl mx-auto px-3 sm:px-6 pt-4 pb-8">
+        <section id="wholesale-catalog" className="max-w-7xl mx-auto px-3 sm:px-6 pt-4 pb-8">
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
             <div>
               <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight">

@@ -53,10 +53,10 @@ export function StoreProvider({ children }) {
   // 5. Custom Categories state (persisted)
   const [categories, setCategories] = useState(() => {
     try {
-      const saved = localStorage.getItem('vijayahub_categories_v1');
-      return saved ? JSON.parse(saved) : ['Kitchen Appliances', 'Dry Fruits & Nuts'];
+      const saved = localStorage.getItem('vijayahub_categories_v2');
+      return saved ? JSON.parse(saved) : ['Rice & Pulses', 'Whole Grains & Dry Fruits', 'Flours, Sooji & Sugar', 'Spices & Masalas', 'Kitchen Appliances'];
     } catch (e) {
-      return ['Kitchen Appliances', 'Dry Fruits & Nuts'];
+      return ['Rice & Pulses', 'Whole Grains & Dry Fruits', 'Flours, Sooji & Sugar', 'Spices & Masalas', 'Kitchen Appliances'];
     }
   });
 

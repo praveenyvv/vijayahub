@@ -257,6 +257,157 @@ export const INITIAL_PRODUCTS = [
       origin: 'Nashik, Maharashtra'
     },
     badge: 'Value Pack'
+  },
+  // --- RICE & PULSES ---
+  {
+    id: 'prod-rc-1',
+    title: 'HMT Kurnool Premium Steamed Sona Masoori Rice',
+    category: 'Rice & Pulses',
+    price: 1399,
+    mrp: 1750,
+    stock: 45,
+    rating: 4.8,
+    reviewsCount: 56,
+    hasVariants: true,
+    variants: [
+      { weight: '5kg', label: '5 KG Bag', price: 320, mrp: 390 },
+      { weight: '10kg', label: '10 KG Bag', price: 590, mrp: 720 },
+      { weight: '25kg', label: '25 KG Mandi Bag', price: 1399, mrp: 1750, isDefault: true }
+    ],
+    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80',
+    description: 'Aged Kurnool Sona Masoori steamed rice. Non-sticky, lightweight grains with delightful aroma. Direct mill dispatch at wholesale rate.',
+    specs: {
+      packWeight: '25 KG (Default Variant)',
+      grade: 'Super Fine Steamed Sona Masoori',
+      shelfLife: '12 Months',
+      origin: 'Kurnool / Nellore Mills'
+    },
+    badge: 'Mill Direct'
+  },
+  {
+    id: 'prod-pl-1',
+    title: 'Guntur Supreme Unpolished Toor Dal (Kandi Pappu)',
+    category: 'Rice & Pulses',
+    price: 165,
+    mrp: 210,
+    stock: 60,
+    rating: 4.9,
+    reviewsCount: 48,
+    hasVariants: true,
+    variants: [
+      { weight: '500g', label: '500g Pouch', price: 85, mrp: 110 },
+      { weight: '1kg', label: '1 KG Pack', price: 165, mrp: 210, isDefault: true },
+      { weight: '5kg', label: '5 KG Bag', price: 790, mrp: 990 }
+    ],
+    image: 'https://images.unsplash.com/photo-1585996746979-379e49a15f00?auto=format&fit=crop&w=800&q=80',
+    description: '100% unpolished Desi Toor Dal retaining natural fiber and plant protein. Cooks creamy and thick with rich traditional Andhra sambar aroma.',
+    specs: {
+      packWeight: '1 KG (Default Variant)',
+      grade: 'Grade-A Unpolished Desi Dal',
+      shelfLife: '9 Months',
+      origin: 'Guntur, Andhra Pradesh'
+    },
+    badge: 'High Protein'
+  },
+  // --- FLOURS, SOOJI & SUGAR ---
+  {
+    id: 'prod-fl-1',
+    title: 'Chakki Fresh 100% Whole Wheat Atta',
+    category: 'Flours, Sooji & Sugar',
+    price: 389,
+    mrp: 475,
+    stock: 50,
+    rating: 4.8,
+    reviewsCount: 39,
+    hasVariants: true,
+    variants: [
+      { weight: '5kg', label: '5 KG Bag', price: 199, mrp: 245 },
+      { weight: '10kg', label: '10 KG Bag', price: 389, mrp: 475, isDefault: true }
+    ],
+    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
+    description: 'Traditional slow-stone ground chakki atta made from selected golden heavy wheat grains. Produces super soft rotis that stay fresh for hours.',
+    specs: {
+      packWeight: '10 KG (Default Variant)',
+      grade: '100% Whole Wheat with Zero Maida',
+      shelfLife: '3 Months',
+      origin: 'Madhya Pradesh Sharbati'
+    },
+    badge: 'Zero Maida'
+  },
+  {
+    id: 'prod-sg-1',
+    title: 'Anakapalle Organic Bellam / Natural Jaggery Blocks',
+    category: 'Flours, Sooji & Sugar',
+    price: 75,
+    mrp: 110,
+    stock: 40,
+    rating: 4.9,
+    reviewsCount: 62,
+    hasVariants: true,
+    variants: [
+      { weight: '1kg', label: '1 KG Block', price: 75, mrp: 110, isDefault: true },
+      { weight: '5kg', label: '5 KG Box', price: 350, mrp: 490 }
+    ],
+    image: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=800&q=80',
+    description: 'Famous Anakapalle market pure sugarcane bellam. Natural dark golden color with zero chemical bleaching. Rich in natural iron and minerals.',
+    specs: {
+      packWeight: '1 KG (Default Variant)',
+      grade: 'Chemical-Free Natural Jaggery',
+      shelfLife: '12 Months',
+      origin: 'Anakapalle, Vizag Dist.'
+    },
+    badge: 'Vizag Local'
+  },
+  // --- SPICES & MASALAS ---
+  {
+    id: 'prod-sp-1',
+    title: 'Guntur Teja Pure Red Chilli Powder (Mirchi Podi)',
+    category: 'Spices & Masalas',
+    price: 180,
+    mrp: 240,
+    stock: 35,
+    rating: 4.8,
+    reviewsCount: 45,
+    hasVariants: true,
+    variants: [
+      { weight: '250g', label: '250g Pouch', price: 50, mrp: 70 },
+      { weight: '500g', label: '500g Pouch', price: 95, mrp: 125 },
+      { weight: '1kg', label: '1 KG Value Pack', price: 180, mrp: 240, isDefault: true }
+    ],
+    image: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?auto=format&fit=crop&w=800&q=80',
+    description: 'Stem-cut Guntur Teja chillies cold-ground to preserve volatile oils and vibrant red color. Intense authentic heat for Indian cooking.',
+    specs: {
+      packWeight: '1 KG (Default Variant)',
+      grade: 'Extra Hot Cold-Ground Teja',
+      shelfLife: '12 Months',
+      origin: 'Guntur Mandi'
+    },
+    badge: 'Mandi Pure'
+  },
+  {
+    id: 'prod-sp-2',
+    title: 'Idukki Whole Green Cardamom 8mm Bold (Elaichi)',
+    category: 'Spices & Masalas',
+    price: 399,
+    mrp: 550,
+    stock: 25,
+    rating: 5.0,
+    reviewsCount: 31,
+    hasVariants: true,
+    variants: [
+      { weight: '50g', label: '50g Pouch', price: 110, mrp: 160 },
+      { weight: '100g', label: '100g Pouch', price: 210, mrp: 290 },
+      { weight: '200g', label: '200g Pouch', price: 399, mrp: 550, isDefault: true }
+    ],
+    image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
+    description: 'Handpicked 8mm extra bold green cardamom pods from the hills of Idukki, Kerala. Intense essential aroma and full of plump black seeds.',
+    specs: {
+      packWeight: '200g (Default Variant)',
+      grade: '8mm Extra Bold Green Pods',
+      shelfLife: '12 Months',
+      origin: 'Idukki, Kerala'
+    },
+    badge: 'Extra Bold 8mm'
   }
 ];
 
