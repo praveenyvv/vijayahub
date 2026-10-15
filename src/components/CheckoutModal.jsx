@@ -117,6 +117,8 @@ export default function CheckoutModal() {
   const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
   const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
   const [pickupSlot, setPickupSlot] = useState(() => {
+    const saved = typeof window !== 'undefined' ? sessionStorage.getItem('vijayahub_selected_pickup_slot') : null;
+    if (saved) return saved;
     const initialSlots = getAvailablePickupSlots();
     return initialSlots[0]?.label || 'Today: Express (Ready in 30 mins)';
   });
@@ -125,7 +127,10 @@ export default function CheckoutModal() {
   React.useEffect(() => {
     if (isCheckoutOpen) {
       const currentSlots = getAvailablePickupSlots();
-      if (!currentSlots.some((s) => s.label === pickupSlot)) {
+      const saved = sessionStorage.getItem('vijayahub_selected_pickup_slot');
+      if (saved && currentSlots.some((s) => s.label === saved)) {
+        setPickupSlot(saved);
+      } else if (!currentSlots.some((s) => s.label === pickupSlot)) {
         setPickupSlot(currentSlots[0]?.label || 'Today: Express (Ready in 30 mins)');
       }
     }

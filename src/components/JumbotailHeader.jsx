@@ -129,30 +129,31 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
     }
   };
 
+  const QUICK_FILTER_TAGS = ['Rice', 'Oil', 'Atta', 'Toor Dal', 'Dry Fruits', 'Spices'];
+
   return (
     <>
       {/* Jumbotail Signature Forest Green Top Header Bar */}
       <header className="sticky top-0 z-40 bg-[#154d28] text-white shadow-md select-none">
         {/* Top Micro Location Bar */}
-        <div className="bg-[#0f3d1f] text-emerald-100 text-[11px] px-3 py-1 flex items-center justify-between border-b border-emerald-800/40">
-          <div className="flex items-center gap-1.5 truncate">
-            <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
-            <span className="truncate">
-              Wholesale Hub: <strong>Dwaraka Nagar, Vizag</strong> • Direct Warehouse Rates
+        <div className="bg-[#0f3d1f] text-emerald-100 text-[11px] px-3 py-1.5 flex items-center justify-between border-b border-emerald-800/40">
+          <div className="flex items-center gap-2 truncate">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] border border-emerald-500/40 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Open Now
+            </span>
+            <span className="truncate flex items-center gap-1 font-semibold">
+              <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>📍 Dwaraka Nagar, Vizag Hub</span>
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-[10px]">
-            <span className="flex items-center gap-1 text-amber-300 font-bold">
+          <div className="flex items-center gap-2.5 text-[10px] shrink-0">
+            <span className="hidden sm:inline-flex items-center gap-1 text-emerald-200 font-medium">
+              <Clock className="w-3 h-3 text-amber-300" /> Counter: 8:00 AM - 9:00 PM
+            </span>
+            <span className="flex items-center gap-1 text-amber-300 font-bold bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/30">
               <Sparkles className="w-3 h-3" /> Ready in 30 Mins
             </span>
-            <a
-              href={`https://wa.me/919848054321?text=Hello%20VijayaHub,%20I%20have%20an%20enquiry`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-white hover:underline flex items-center gap-1"
-            >
-              <Phone className="w-3 h-3" /> {storeInfo.phone}
-            </a>
           </div>
         </div>
 
@@ -163,7 +164,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             <button
               type="button"
               onClick={() => setIsDrawerOpen(true)}
-              className="w-9 h-9 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-colors"
+              className="w-9 h-9 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-colors cursor-pointer"
               aria-label="Open Navigation Menu"
             >
               <Menu className="w-6 h-6 text-white" />
@@ -176,14 +177,14 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                 setSelectedCategory('All');
                 setSearchQuery('');
               }}
-              className="flex items-center gap-2 text-left"
+              className="flex items-center gap-2 text-left cursor-pointer"
             >
               <div className="w-8 h-8 rounded-lg bg-amber-400 text-[#0f3d1f] font-black text-lg flex items-center justify-center shadow-xs">
                 VH
               </div>
               <div>
                 <span className="text-xl sm:text-2xl font-black tracking-tight font-sans text-white">
-                  Vijaya<span className="text-amber-400">Hub</span>
+                  Vijay<span className="text-amber-400">Hub</span>
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-800/80 text-emerald-200 px-1.5 py-0.2 rounded-sm ml-1.5 border border-emerald-700/60 hidden xs:inline">
                   Vizag
@@ -198,7 +199,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             <button
               type="button"
               onClick={() => setIsFeedbackModalOpen(true)}
-              className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-emerald-100 hover:text-white transition-colors"
+              className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-emerald-100 hover:text-white transition-colors cursor-pointer"
               title="Help & Support"
             >
               <HelpCircle className="w-5 h-5" />
@@ -208,7 +209,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="relative w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-emerald-100 hover:text-white transition-colors"
+              className="relative w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-emerald-100 hover:text-white transition-colors cursor-pointer"
               title="Notifications"
             >
               <Bell className="w-5 h-5" />
@@ -221,7 +222,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="relative w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-emerald-100 hover:text-white transition-colors"
+              className="relative w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-emerald-100 hover:text-white transition-colors cursor-pointer"
               title="My Orders & OTP"
             >
               <Package className="w-5 h-5" />
@@ -236,7 +237,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative w-9 h-9 rounded-full bg-emerald-800/90 hover:bg-emerald-700 flex items-center justify-center text-white transition-colors shadow-xs ml-1"
+              className="relative w-9 h-9 rounded-full bg-emerald-800/90 hover:bg-emerald-700 flex items-center justify-center text-white transition-colors shadow-xs ml-1 cursor-pointer"
               title="Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5" />
@@ -251,7 +252,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             <button
               type="button"
               onClick={handleOpenAdminPortal}
-              className="hidden lg:flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg bg-emerald-900/80 hover:bg-emerald-900 text-amber-300 border border-emerald-700/60 ml-2"
+              className="hidden lg:flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg bg-emerald-900/80 hover:bg-emerald-900 text-amber-300 border border-emerald-700/60 ml-2 cursor-pointer"
             >
               <Store className="w-3.5 h-3.5" />
               <span>{isAdminMode ? 'Customer Store' : 'Counter Admin'}</span>
@@ -280,7 +281,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 mr-1"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 mr-1 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -292,7 +293,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                 <button
                   type="button"
                   onClick={() => setIsBarcodeSimOpen(true)}
-                  className="p-1 hover:text-[#154d28] hover:bg-slate-100 rounded-md transition-colors"
+                  className="p-1 hover:text-[#154d28] hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                   title="Visual Product Search"
                 >
                   <Camera className="w-4 h-4" />
@@ -302,7 +303,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                 <button
                   type="button"
                   onClick={handleVoiceSearch}
-                  className={`p-1 rounded-md transition-colors ${
+                  className={`p-1 rounded-md transition-colors cursor-pointer ${
                     isListening ? 'text-rose-600 bg-rose-50 animate-pulse' : 'hover:text-[#154d28] hover:bg-slate-100'
                   }`}
                   title="Voice Search"
@@ -314,13 +315,56 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                 <button
                   type="button"
                   onClick={() => setIsBarcodeSimOpen(true)}
-                  className="p-1 hover:text-[#154d28] hover:bg-slate-100 rounded-md transition-colors"
+                  className="p-1 hover:text-[#154d28] hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                   title="Scan Barcode / QR"
                 >
                   <Barcode className="w-4 h-4" />
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Quick Search Filter Pills Underneath Search Input */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 pb-0.5 text-xs">
+            <span className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-300/80 shrink-0 mr-0.5">
+              Popular:
+            </span>
+            {QUICK_FILTER_TAGS.map((tag) => {
+              const isSelected = searchQuery.toLowerCase() === tag.toLowerCase();
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSearchQuery('');
+                    } else {
+                      setSearchQuery(tag);
+                      const catalogElement = document.getElementById('wholesale-catalog');
+                      if (catalogElement) {
+                        catalogElement.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
+                    isSelected
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-xs scale-105'
+                      : 'bg-white/10 hover:bg-white/20 text-emerald-100 border border-emerald-600/30'
+                  }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="px-2 py-0.5 text-[10px] text-amber-300 hover:text-white underline font-semibold shrink-0 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
       </header>

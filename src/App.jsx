@@ -137,12 +137,11 @@ function StorefrontContent() {
 
       <main className="flex-1 pb-24 md:pb-12">
         {/* Banner with Direct Hub Perks */}
+        {/* Banner with Direct Hub Perks */}
         <HeroBanner />
 
-        {/* Jumbotail Signature 2-Column Category Showcase (Featured when viewing All and no search) */}
-        {selectedCategory === 'All' && !searchQuery && (
-          <JumbotailCategorySections />
-        )}
+        {/* Jumbotail Signature 2-Column Mobile / 4-Column Desktop Category Showcase */}
+        <JumbotailCategorySections />
 
         {/* Product Catalog Grid Header */}
         <section id="wholesale-catalog" className="max-w-7xl mx-auto px-3 sm:px-6 pt-4 pb-8">
@@ -160,13 +159,16 @@ function StorefrontContent() {
               </p>
             </div>
 
-            {selectedCategory !== 'All' && (
+            {(selectedCategory !== 'All' || searchQuery) && (
               <button
                 type="button"
-                onClick={() => setSelectedCategory('All')}
-                className="text-xs font-bold text-[#154d28] hover:underline"
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setSearchQuery('');
+                }}
+                className="text-xs font-bold text-[#154d28] hover:underline flex items-center gap-1"
               >
-                Reset to All
+                <span>Reset to All</span>
               </button>
             )}
           </div>
@@ -272,9 +274,48 @@ function StorefrontContent() {
         </div>
       )}
 
+      {/* Persistent Mobile Sticky Bottom Cart Strip */}
+      {cartItemCount > 0 && !isCartOpen && !isCheckoutOpen && (
+        <div className="fixed bottom-16 inset-x-3 z-30 md:hidden animate-in slide-in-from-bottom-4 duration-200">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setIsCartOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsCartOpen(true);
+              }
+            }}
+            className="bg-[#154d28] hover:bg-[#113e20] text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between cursor-pointer border border-emerald-400/40 active:scale-[0.99] transition-all"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black shadow-md shrink-0">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-emerald-200 uppercase tracking-wider">
+                  {cartItemCount} {cartItemCount === 1 ? 'Item' : 'Items'} | Dwaraka Nagar
+                </div>
+                <div className="text-base font-black text-white leading-tight">
+                  ₹{cartSubtotal.toLocaleString('en-IN')}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-xs shrink-0">
+              <span>View Cart & Pick Slot</span>
+              <ArrowRight className="w-4 h-4 stroke-[3]" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Live Ongoing Pickup Order Pop-Up Bar */}
       {showActiveOrderBanner && (
-        <div className="fixed bottom-16 left-3 right-3 sm:left-auto sm:right-6 z-30 max-w-md animate-in slide-in-from-bottom duration-300">
+        <div className={`fixed left-3 right-3 sm:left-auto sm:right-6 z-30 max-w-md animate-in slide-in-from-bottom duration-300 ${
+          cartItemCount > 0 ? 'bottom-34 sm:bottom-16' : 'bottom-16'
+        }`}>
           <div
             onClick={() => setIsAuthModalOpen(true)}
             className="cursor-pointer bg-slate-900 text-white rounded-2xl p-3 shadow-2xl border border-emerald-500/40 flex items-center justify-between gap-3 hover:bg-slate-800 transition-all"
