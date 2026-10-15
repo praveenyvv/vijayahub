@@ -279,13 +279,15 @@ export default function CheckoutModal() {
       }
 
       placeOrder({
+        userId: currentUser?.id || null,
         customer: {
           name: customerName,
           phone: customerPhone,
           email: customerEmail || `${customerPhone}@customer.vijayahub.com`,
           address: storeInfo.address,
           pincode: '530016',
-          landmark: 'Dwaraka Nagar Central Hub'
+          landmark: 'Dwaraka Nagar Central Hub',
+          userId: currentUser?.id || null
         },
         fulfillmentType: 'pickup', // Strictly Store Pickup Only
         pickupSlot: pickupSlot,
@@ -308,10 +310,16 @@ export default function CheckoutModal() {
 
       // Auto-set currentUser so this phone session stays linked to their orders
       if (!currentUser && customerPhone) {
+        const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `usr-${customerPhone}-${Date.now()}`;
+
         setCurrentUser({
+          id: generatedId,
           phone: customerPhone,
           name: customerName,
           email: customerEmail || `${customerPhone}@customer.vijayahub.com`,
+          isPhoneVerified: false,
           joinedAt: new Date().toISOString()
         });
       }

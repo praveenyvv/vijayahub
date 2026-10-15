@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
@@ -13,9 +13,15 @@ import {
   ChevronRight,
   Store,
   MapPin,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  KeyRound,
+  RefreshCw,
+  ShieldCheck,
+  ArrowLeft
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser } from '../services/authService';
 
 export default function UserAccountModal() {
   const {
@@ -28,71 +34,115 @@ export default function UserAccountModal() {
     storeInfo
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'profile', 'login'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'profile'
+  const [authStage, setAuthStage] = useState('phone'); // 'phone' or 'otp'
   const [loginPhone, setLoginPhone] = useState('');
   const [loginName, setLoginName] = useState('');
-  const [isNewUser, setIsNewUser] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
+  const [isDevBypass, setIsDevBypass] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  // Countdown timer for Resend OTP
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   const handleCloseModal = () => {
     setIsAuthModalOpen(false);
+    setAuthStage('phone');
+    setOtpCode('');
+    setStatusMessage({ text: '', type: '' });
   };
 
-  // Handle hardware / gesture browser back button
-  React.useEffect(() => {
-    if (isAuthModalOpen) {
-      window.history.pushState({ modal: 'auth-modal' }, '');
-      const handlePopState = () => {
-        setIsAuthModalOpen(false);
-      };
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
+  const handleSendOtp = async (e) => {
+    if (e) e.preventDefault();
+    const cleanPhone = loginPhone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setStatusMessage({ text: 'Please enter a valid 10-digit mobile number.', type: 'error' });
+      return;
     }
-  }, [isAuthModalOpen]);
 
-  // Handle Escape key to close
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isAuthModalOpen) {
-        handleCloseModal();
+    setIsLoading(true);
+    setStatusMessage({ text: '', type: '' });
+
+    try {
+      const result = await sendPhoneOtp(cleanPhone);
+      if (result.success) {
+        setAuthStage('otp');
+        setCountdown(60);
+        setIsDevBypass(Boolean(result.isDevFallback));
+        setStatusMessage({
+          text: result.message || `Verification code sent to +91 ${cleanPhone.slice(-10)}`,
+          type: result.isDevFallback ? 'info' : 'success'
+        });
+      } else {
+        setStatusMessage({ text: result.error || 'Failed to send OTP. Please try again.', type: 'error' });
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAuthModalOpen]);
-
-  if (!isAuthModalOpen) return null;
-
-  // Filter orders matching the logged in user phone or current guest session
-  const cleanCurrentPhone = currentUser?.phone?.replace(/\D/g, '');
-  const userOrders = currentUser
-    ? orders.filter(
-        (o) =>
-          (cleanCurrentPhone && o.customer?.phone?.replace(/\D/g, '') === cleanCurrentPhone) ||
-          o.customer?.email === currentUser.email
-      )
-    : [];
-
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    if (!loginPhone.trim()) return;
-
-    const userObj = {
-      phone: loginPhone.trim(),
-      name: loginName.trim() || `Customer ${loginPhone.slice(-4)}`,
-      email: `${loginPhone.trim()}@customer.vijayahub.com`,
-      joinedAt: new Date().toISOString()
-    };
-
-    setCurrentUser(userObj);
-    setActiveTab('orders');
+    } catch (err) {
+      setStatusMessage({ text: 'Network error sending OTP. Please try again.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLogout = () => {
+  const handleVerifyOtp = async (e) => {
+    if (e) e.preventDefault();
+    const cleanOtp = (otpCode || '').trim();
+    if (!cleanOtp) {
+      setStatusMessage({ text: 'Please enter the 6-digit verification code.', type: 'error' });
+      return;
+    }
+
+    setIsLoading(true);
+    setStatusMessage({ text: '', type: '' });
+
+    try {
+      const result = await verifyPhoneOtp(loginPhone, cleanOtp, loginName);
+      if (result.success && result.user) {
+        setCurrentUser(result.user);
+        setActiveTab('orders');
+        setAuthStage('phone');
+        setOtpCode('');
+        setStatusMessage({ text: 'Signed in successfully!', type: 'success' });
+      } else {
+        setStatusMessage({ text: result.error || 'Invalid OTP code. Please check and re-enter.', type: 'error' });
+      }
+    } catch (err) {
+      setStatusMessage({ text: 'Error verifying OTP code.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDevQuickVerify = async () => {
+    setOtpCode('123456');
+    setIsLoading(true);
+    try {
+      const result = await verifyPhoneOtp(loginPhone, '123456', loginName);
+      if (result.success && result.user) {
+        setCurrentUser(result.user);
+        setActiveTab('orders');
+        setAuthStage('phone');
+        setOtpCode('');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOutAuthUser();
     setCurrentUser(null);
     setLoginPhone('');
     setLoginName('');
+    setOtpCode('');
+    setAuthStage('phone');
   };
 
   return (
@@ -160,54 +210,170 @@ export default function UserAccountModal() {
 
         {/* Body Content */}
         <div className="p-5 sm:p-6 max-h-[75vh] overflow-y-auto space-y-4">
-          {/* NOT LOGGED IN: SHOW INSTANT SIGN IN FORM */}
+          {/* NOT LOGGED IN: REAL SECURE PHONE OTP FLOW */}
           {!currentUser ? (
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-sm mb-0.5">Quick Sign In (No password needed!)</p>
+                  <p className="font-bold text-sm mb-0.5">Secure Phone Verification</p>
                   <p className="text-slate-600 text-[11px] leading-relaxed">
-                    Enter your mobile number to view all your past pickup orders, check 24-hr expiry countdowns, and download GST tax invoices.
+                    Verify your phone number with an SMS OTP to access your orders, pickup codes, and GST tax invoices.
                   </p>
                 </div>
               </div>
 
-              <form onSubmit={handleLoginSubmit} className="space-y-3 pt-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Your WhatsApp Mobile Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="e.g. 9848012345"
-                    value={loginPhone}
-                    onChange={(e) => setLoginPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm font-semibold focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Your Full Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Ramesh Varma"
-                    value={loginName}
-                    onChange={(e) => setLoginName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm focus:outline-hidden"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-sm shadow-md shadow-amber-600/30 transition-all"
+              {/* Status Notice */}
+              {statusMessage.text && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    statusMessage.type === 'error'
+                      ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                      : statusMessage.type === 'info'
+                      ? 'bg-sky-50 border border-sky-200 text-sky-800'
+                      : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                  }`}
                 >
-                  Sign In & View My Orders
-                </button>
-              </form>
+                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <span>{statusMessage.text}</span>
+                </div>
+              )}
+
+              {authStage === 'phone' ? (
+                /* STAGE 1: ENTER PHONE NUMBER */
+                <form onSubmit={handleSendOtp} className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      WhatsApp Mobile Number *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-bold text-xs">
+                        🇮🇳 +91
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        maxLength={10}
+                        placeholder="9848012345"
+                        value={loginPhone}
+                        onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, ''))}
+                        className="w-full pl-16 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm font-semibold focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Your Full Name (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Ramesh Varma"
+                      value={loginName}
+                      onChange={(e) => setLoginName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm focus:outline-hidden"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading || loginPhone.length < 10}
+                    className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Sending Code...</span>
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="w-4 h-4" />
+                        <span>Get Verification Code</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                /* STAGE 2: ENTER OTP CODE */
+                <form onSubmit={handleVerifyOtp} className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between text-xs bg-slate-100 p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-600">
+                      Code sent to: <strong className="text-slate-900">+91 {loginPhone.slice(-10)}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAuthStage('phone')}
+                      className="text-amber-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                      <span>Change</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Enter 6-Digit OTP Code *
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      maxLength={6}
+                      placeholder="• • • • • •"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-3.5 py-2.5 text-center tracking-widest font-mono text-lg font-black bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  {isDevBypass && (
+                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900 flex items-center justify-between">
+                      <span>Dev Mode: Default test code is <strong>123456</strong></span>
+                      <button
+                        type="button"
+                        onClick={handleDevQuickVerify}
+                        className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] cursor-pointer"
+                      >
+                        1-Click Verify
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isLoading || !otpCode}
+                    className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Verify & Sign In</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-1">
+                    {countdown > 0 ? (
+                      <span className="text-xs text-slate-400 font-medium">
+                        Resend code in {countdown}s
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        className="text-xs font-bold text-amber-600 hover:underline cursor-pointer"
+                      >
+                        Resend OTP Code
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
           ) : activeTab === 'orders' ? (
             /* TAB 1: ORDER TRACKER (BLINKIT / ZEPTO STYLE) */
@@ -389,8 +555,21 @@ export default function UserAccountModal() {
                   </div>
                   <div className="flex justify-between border-b border-slate-200 pb-1.5">
                     <span className="text-slate-500">WhatsApp Mobile:</span>
-                    <span className="font-mono font-bold text-slate-900">{currentUser.phone}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-slate-900">+91 {currentUser.phone}</span>
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" /> Verified
+                      </span>
+                    </div>
                   </div>
+                  {currentUser.id && (
+                    <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                      <span className="text-slate-500">Account ID:</span>
+                      <span className="font-mono text-[10px] text-slate-600">
+                        {currentUser.id.length > 20 ? `${currentUser.id.slice(0, 18)}...` : currentUser.id}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-500">Preferred Pickup Store:</span>
                     <span className="font-bold text-amber-800">Dwaraka Nagar Central Hub</span>

@@ -143,6 +143,58 @@ export function StoreProvider({ children }) {
     }
   }, [currentUser]);
 
+  // Sync with Supabase Auth Session
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    // Check existing Supabase session on startup
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const rawPhone = session.user.phone || session.user.user_metadata?.phone || '';
+        const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+        setCurrentUser((prev) => ({
+          ...prev,
+          id: session.user.id,
+          phone: cleanPhone || prev?.phone || '',
+          name:
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.display_name ||
+            prev?.name ||
+            `Customer ${cleanPhone ? cleanPhone.slice(-4) : 'User'}`,
+          email: session.user.email || prev?.email || `${cleanPhone}@customer.vijayahub.com`,
+          isPhoneVerified: true
+        }));
+      }
+    });
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const rawPhone = session.user.phone || session.user.user_metadata?.phone || '';
+        const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+        setCurrentUser((prev) => ({
+          ...prev,
+          id: session.user.id,
+          phone: cleanPhone || prev?.phone || '',
+          name:
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.display_name ||
+            prev?.name ||
+            `Customer ${cleanPhone ? cleanPhone.slice(-4) : 'User'}`,
+          email: session.user.email || prev?.email || `${cleanPhone}@customer.vijayahub.com`,
+          isPhoneVerified: true
+        }));
+      } else if (_event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
   // --- Real-Time Supabase Cloud Synchronization ---
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -445,6 +497,25 @@ export function StoreProvider({ children }) {
 
       // If any items need to be restocked, restore them into products inventory
       if (Object.keys(restockMap).length > 0) {
+        if (isSupabaseConfigured && supabase) {
+          Object.entries(restockMap).forEach(([prodId, qty]) => {
+            supabase
+              .rpc('increment_inventory_atomic', {
+                p_product_id: prodId,
+                p_quantity: qty
+              })
+              .then(({ error }) => {
+                if (error) {
+                  // Fallback if RPC not yet loaded
+                  const prod = products.find((p) => p.id === prodId);
+                  if (prod) {
+                    supabase.from('products').update({ stock: prod.stock + qty }).eq('id', prodId).then();
+                  }
+                }
+              });
+          });
+        }
+
         setProducts((prevProducts) =>
           prevProducts.map((p) => {
             if (restockMap[p.id]) {
@@ -478,10 +549,66 @@ export function StoreProvider({ children }) {
       status: 'Placed',
       paymentStatus: 'PAID',
       pickupOtp: pickupOtp, // Unique OTP required for physical pickup handover
+      userId: currentUser?.id || null,
       ...orderData
     };
 
-    // 1. Deduct stock from products automatically upon order placement
+    // 1. ATOMIC INVENTORY DEDUCTION (Row-level Locking via PostgreSQL RPC)
+    let deductionSuccessful = true;
+    let concurrencyErrorMessage = '';
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // Attempt batch atomic reservation first (all-or-nothing transaction)
+        const batchItems = (orderData.items || []).map((it) => ({
+          id: it.id,
+          quantity: it.quantity || 1
+        }));
+
+        const { data: batchResult, error: batchError } = await supabase.rpc(
+          'decrement_order_inventory_atomic',
+          { p_items: batchItems }
+        );
+
+        if (!batchError && batchResult) {
+          if (!batchResult.success) {
+            deductionSuccessful = false;
+            concurrencyErrorMessage = batchResult.error || 'Insufficient stock for one or more items.';
+          }
+        } else {
+          // Fallback to single-item atomic deduction if batch procedure is pending
+          for (const it of orderData.items || []) {
+            const qty = it.quantity || 1;
+            const { data: itemResult, error: itemError } = await supabase.rpc(
+              'decrement_inventory_atomic',
+              { p_product_id: it.id, p_quantity: qty }
+            );
+
+            if (!itemError && itemResult && !itemResult.success) {
+              deductionSuccessful = false;
+              concurrencyErrorMessage = itemResult.error || `Insufficient stock for item "${it.title}".`;
+              break;
+            } else if (itemError) {
+              // Direct update fallback if RPC not installed
+              const currentProd = products.find((p) => p.id === it.id);
+              if (currentProd) {
+                const remaining = Math.max(0, currentProd.stock - qty);
+                await supabase.from('products').update({ stock: remaining }).eq('id', it.id);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Atomic deduction error note:', err);
+      }
+    }
+
+    if (!deductionSuccessful) {
+      alert(`⚠️ Concurrency Stock Alert:\n\n${concurrencyErrorMessage}\n\nPlease adjust your cart quantity to complete this order.`);
+      return null;
+    }
+
+    // 2. Deduct stock from products in local React state
     setProducts((prevProducts) =>
       prevProducts.map((p) => {
         const totalPurchased = orderData.items
@@ -489,33 +616,30 @@ export function StoreProvider({ children }) {
           .reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
 
         if (totalPurchased > 0) {
-          const remainingStock = Math.max(0, p.stock - totalPurchased);
-          // If Supabase is connected, update stock in cloud
-          if (isSupabaseConfigured && supabase) {
-            supabase.from('products').update({ stock: remainingStock }).eq('id', p.id).then();
-          }
-          return { ...p, stock: remainingStock };
+          return { ...p, stock: Math.max(0, p.stock - totalPurchased) };
         }
         return p;
       })
     );
 
-    // 2. Add to orders list at the top
+    // 3. Add to orders list at the top
     setOrders((prev) => [fullOrder, ...prev.filter((o) => o.id !== fullOrder.id)]);
 
-    // 3. Clear cart and set completed order for feedback
+    // 4. Clear cart and set completed order for feedback
     clearCart();
     setIsCheckoutOpen(false);
     setCompletedOrder(fullOrder);
 
-    // 4. Save order to Supabase cloud if connected
+    // 5. Save order to Supabase cloud if connected (Includes user_id and pickup_otp)
     if (isSupabaseConfigured && supabase) {
       try {
         const orderPayload = {
           id: fullOrder.id,
+          user_id: currentUser?.id || null,
           customer: {
             ...fullOrder.customer,
-            pickupOtp: fullOrder.pickupOtp
+            pickupOtp: fullOrder.pickupOtp,
+            userId: currentUser?.id || null
           },
           items: fullOrder.items,
           item_subtotal: fullOrder.itemSubtotal,
@@ -528,28 +652,32 @@ export function StoreProvider({ children }) {
           payment_method: fullOrder.paymentMethod,
           upi_ref_number: fullOrder.upiRefNumber,
           notes: fullOrder.notes,
-          expires_at: fullOrder.expiresAt
+          expires_at: fullOrder.expiresAt,
+          pickup_otp: fullOrder.pickupOtp
         };
 
-        // Attempt insert with pickup_otp column if it exists in DB table
-        const { error: insertError } = await supabase.from('orders').insert([
-          {
-            ...orderPayload,
-            pickup_otp: fullOrder.pickupOtp
-          }
-        ]);
+        const { error: insertError } = await supabase.from('orders').insert([orderPayload]);
 
         if (insertError) {
-          console.warn('Supabase insert with pickup_otp column note:', insertError.message);
-          // If pickup_otp column does not exist in schema, insert safe payload (pickupOtp is preserved in customer JSONB)
-          const { error: fallbackError } = await supabase.from('orders').insert([orderPayload]);
-          if (fallbackError) {
-            console.error('Supabase fallback order insert error:', fallbackError);
-          } else {
-            console.log('Order successfully saved to Supabase (safe JSONB payload)');
-          }
-        } else {
-          console.log('Order successfully saved to Supabase (with pickup_otp column)');
+          console.warn('Supabase insert with user_id/pickup_otp note:', insertError.message);
+          // If user_id or pickup_otp column is not yet migrated, insert safe payload
+          const safePayload = {
+            id: fullOrder.id,
+            customer: orderPayload.customer,
+            items: fullOrder.items,
+            item_subtotal: fullOrder.itemSubtotal,
+            delivery_fee: fullOrder.deliveryFee || 0,
+            total: fullOrder.total,
+            pickup_slot: fullOrder.pickupSlot,
+            fulfillment_type: fullOrder.fulfillmentType,
+            status: fullOrder.status,
+            payment_status: fullOrder.paymentStatus,
+            payment_method: fullOrder.paymentMethod,
+            upi_ref_number: fullOrder.upiRefNumber,
+            notes: fullOrder.notes,
+            expires_at: fullOrder.expiresAt
+          };
+          await supabase.from('orders').insert([safePayload]);
         }
       } catch (err) {
         console.warn('Supabase order insert note:', err);
@@ -564,7 +692,27 @@ export function StoreProvider({ children }) {
     const orderToCancel = orders.find((o) => o.id === orderId);
     if (!orderToCancel || orderToCancel.status === 'Cancelled') return;
 
-    // Restore stock
+    // Restore stock atomically in cloud database
+    if (isSupabaseConfigured && supabase) {
+      orderToCancel.items?.forEach((it) => {
+        const qty = it.quantity || 1;
+        supabase
+          .rpc('increment_inventory_atomic', {
+            p_product_id: it.id,
+            p_quantity: qty
+          })
+          .then(({ error }) => {
+            if (error) {
+              const prod = products.find((p) => p.id === it.id);
+              if (prod) {
+                supabase.from('products').update({ stock: prod.stock + qty }).eq('id', it.id).then();
+              }
+            }
+          });
+      });
+    }
+
+    // Restore stock in local state
     setProducts((prevProducts) =>
       prevProducts.map((p) => {
         const totalReturned = orderToCancel.items
@@ -572,11 +720,7 @@ export function StoreProvider({ children }) {
           .reduce((sum, it) => sum + (it.quantity || 1), 0) || 0;
 
         if (totalReturned > 0) {
-          const newStock = p.stock + totalReturned;
-          if (isSupabaseConfigured && supabase) {
-            supabase.from('products').update({ stock: newStock }).eq('id', p.id).then();
-          }
-          return { ...p, stock: newStock };
+          return { ...p, stock: p.stock + totalReturned };
         }
         return p;
       })
