@@ -340,10 +340,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
                       setSearchQuery('');
                     } else {
                       setSearchQuery(tag);
-                      const catalogElement = document.getElementById('wholesale-catalog');
-                      if (catalogElement) {
-                        catalogElement.scrollIntoView({ behavior: 'smooth' });
-                      }
+                      setSelectedCategory('All');
                     }
                   }}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shrink-0 cursor-pointer ${

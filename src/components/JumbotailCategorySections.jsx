@@ -3,13 +3,14 @@ import { Sparkles, Layers, RotateCcw } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { PRODUCTS_FOR_YOU_ITEMS, MAIN_CATEGORY_SECTIONS } from '../data/categorySectionsData';
 import CategoryGrid, { CategoryCard } from './CategoryGrid';
+import { matchProductCategory } from './ProductGrid';
 
 export { CategoryGrid, CategoryCard };
 
 /**
  * Main Jumbotail Visual Showcase Component:
  * - Section 1: "Products for You" (Horizontal Scroll Carousel)
- * - Section 2: Wholesale Category Grid (2 columns on mobile, 4 columns on desktop with item counts & active state)
+ * - Section 2: Wholesale Category Grid (Dedicated filtering without jump-scroll)
  */
 export default function JumbotailCategorySections() {
   const { setSelectedProduct, searchQuery, setSearchQuery, selectedCategory, setSelectedCategory, products } = useStore();
@@ -23,54 +24,38 @@ export default function JumbotailCategorySections() {
       setSelectedProduct(found);
     } else if (item.searchKeyword) {
       setSearchQuery(item.searchKeyword);
-      const catalogElement = document.getElementById('wholesale-catalog');
-      if (catalogElement) {
-        catalogElement.scrollIntoView({ behavior: 'smooth' });
-      }
     }
   };
 
   const handleSubCategoryClick = (subCategory) => {
-    if (subCategory.searchKeyword) {
-      setSearchQuery(subCategory.searchKeyword);
-    }
-    const catalogElement = document.getElementById('wholesale-catalog');
-    if (catalogElement) {
-      catalogElement.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Immediate dedicated category filter without jump-scrolling
+    setSelectedCategory(subCategory.name);
+    setSearchQuery('');
   };
 
   // Dynamic count calculator
   const getItemCount = (item) => {
-    const keyword = (item.searchKeyword || item.name || '').toLowerCase();
-    const count = products.filter((p) => {
-      const matchCat = p.category && p.category.toLowerCase().includes(keyword);
-      const matchTitle = p.title && p.title.toLowerCase().includes(keyword);
-      const matchDesc = p.description && p.description.toLowerCase().includes(keyword);
-      return matchCat || matchTitle || matchDesc;
-    }).length;
-    return count > 0 ? count : (products.length > 0 ? Math.max(1, Math.min(count, 4)) : 6);
+    return products.filter((p) => matchProductCategory(p, item.name) || matchProductCategory(p, item.searchKeyword)).length;
   };
 
   const isAllActive = selectedCategory === 'All' && !searchQuery;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 space-y-6 pt-2 pb-6">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 space-y-4 pt-1 pb-4">
       {/* ============================================================== */}
       {/* SECTION 1: Products for You (Horizontal Scroll Carousel)        */}
       {/* ============================================================== */}
-      <section className="space-y-2.5">
+      <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 fill-amber-400" />
             </span>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight leading-none">
+            <h2 className="text-sm sm:text-base md:text-lg font-black text-gray-900 tracking-tight leading-none">
               Products for You
             </h2>
           </div>
 
-          {/* Quick All Reset pill */}
           {!isAllActive && (
             <button
               type="button"
@@ -78,7 +63,7 @@ export default function JumbotailCategorySections() {
                 setSelectedCategory('All');
                 setSearchQuery('');
               }}
-              className="flex items-center gap-1 text-xs font-bold text-[#154d28] hover:underline"
+              className="flex items-center gap-1 text-xs font-bold text-[#154d28] hover:underline cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset Filters</span>
@@ -86,8 +71,8 @@ export default function JumbotailCategorySections() {
           )}
         </div>
 
-        {/* Horizontal swipe / scrollable container with snap */}
-        <div className="overflow-x-auto flex gap-3 snap-x snap-mandatory pb-2 scroll-smooth no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
+        {/* Horizontal swipe container */}
+        <div className="overflow-x-auto flex gap-2 sm:gap-3 snap-x snap-mandatory pb-2 scroll-smooth no-scrollbar -mx-2 px-2 sm:mx-0 sm:px-0">
           {PRODUCTS_FOR_YOU_ITEMS.map((item) => (
             <div
               key={item.id}
@@ -100,9 +85,9 @@ export default function JumbotailCategorySections() {
                   handleProductForYouClick(item);
                 }
               }}
-              className="shrink-0 w-36 sm:w-44 snap-start group bg-white rounded-xl shadow-xs hover:shadow-md border border-gray-200 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 active:scale-[0.98]"
+              className="shrink-0 w-32 sm:w-40 snap-start group bg-white rounded-xl shadow-xs hover:shadow-md border border-gray-200 overflow-hidden flex flex-col cursor-pointer transition-all duration-200 active:scale-[0.98]"
             >
-              <div className="h-28 sm:h-36 w-full overflow-hidden bg-slate-50">
+              <div className="h-24 sm:h-32 w-full overflow-hidden bg-slate-50 shrink-0">
                 <img
                   src={item.image}
                   alt={item.name}
@@ -113,8 +98,8 @@ export default function JumbotailCategorySections() {
                   }}
                 />
               </div>
-              <div className="p-2.5 text-center bg-white flex items-center justify-center min-h-[46px] sm:min-h-[52px]">
-                <span className="text-xs sm:text-sm font-bold text-gray-900 leading-tight group-hover:text-[#154d28] transition-colors">
+              <div className="p-2 text-center bg-white flex items-center justify-center min-h-[40px] sm:min-h-[46px]">
+                <span className="text-[11px] sm:text-xs font-bold text-gray-900 leading-tight group-hover:text-[#154d28] transition-colors truncate">
                   {item.name}
                 </span>
               </div>
@@ -126,13 +111,13 @@ export default function JumbotailCategorySections() {
       {/* ============================================================== */}
       {/* SECTION 2: Category Sections (2-Col Mobile, 4-Col Desktop)     */}
       {/* ============================================================== */}
-      <section className="space-y-6">
+      <section className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between pb-1 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
               <Layers className="w-3.5 h-3.5 text-[#154d28]" />
             </span>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight leading-none">
+            <h2 className="text-sm sm:text-base md:text-lg font-black text-gray-900 tracking-tight leading-none">
               Explore Wholesale Categories
             </h2>
           </div>
@@ -143,7 +128,7 @@ export default function JumbotailCategorySections() {
               setSelectedCategory('All');
               setSearchQuery('');
             }}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
               isAllActive
                 ? 'bg-[#154d28] text-white shadow-xs'
                 : 'bg-white text-gray-700 border border-gray-300 hover:border-[#154d28]'
@@ -155,24 +140,25 @@ export default function JumbotailCategorySections() {
         </div>
 
         {MAIN_CATEGORY_SECTIONS.map((section) => (
-          <div key={section.id} className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
+          <div key={section.id} className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
                 {section.iconBadge}
               </span>
-              <h3 className="text-sm sm:text-base font-extrabold text-gray-900 tracking-tight">
+              <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-gray-900 tracking-tight">
                 {section.title}
               </h3>
             </div>
 
             {/* 2-column mobile, 4-column desktop */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
               {section.subCategories.map((subCategory) => {
                 const count = getItemCount(subCategory);
                 const isActive =
-                  Boolean(searchQuery) &&
-                  Boolean(subCategory.searchKeyword) &&
-                  searchQuery.toLowerCase() === subCategory.searchKeyword.toLowerCase();
+                  selectedCategory === subCategory.name ||
+                  (selectedCategory !== 'All' &&
+                    (subCategory.name.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+                     selectedCategory.toLowerCase().includes(subCategory.name.toLowerCase())));
 
                 return (
                   <CategoryCard

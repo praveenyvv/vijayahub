@@ -4,6 +4,7 @@ import JumbotailHeader from './components/JumbotailHeader';
 import JumbotailCategorySections from './components/JumbotailCategorySections';
 import JumbotailBottomNav from './components/JumbotailBottomNav';
 import HeroBanner from './components/HeroBanner';
+import ProductGrid from './components/ProductGrid';
 import ProductCard from './components/ProductCard';
 import ProductModal from './components/ProductModal';
 import CartDrawer from './components/CartDrawer';
@@ -107,16 +108,6 @@ function StorefrontContent() {
     }
   }, [activeOrder?.id]);
 
-  // Filter products by Category & Search
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory =
-      selectedCategory === 'All' || p.category === selectedCategory;
-    const matchesSearch =
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
 
   if (isAdminMode) {
     return (
@@ -143,68 +134,8 @@ function StorefrontContent() {
         {/* Jumbotail Signature 2-Column Mobile / 4-Column Desktop Category Showcase */}
         <JumbotailCategorySections />
 
-        {/* Product Catalog Grid Header */}
-        <section id="wholesale-catalog" className="max-w-7xl mx-auto px-3 sm:px-6 pt-4 pb-8">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
-            <div>
-              <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight">
-                {searchQuery
-                  ? `Search results for "${searchQuery}"`
-                  : selectedCategory === 'All'
-                  ? 'All Wholesale Products'
-                  : selectedCategory}
-              </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                {filteredProducts.length} item{filteredProducts.length === 1 ? '' : 's'} available at Dwaraka Nagar hub
-              </p>
-            </div>
-
-            {(selectedCategory !== 'All' || searchQuery) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCategory('All');
-                  setSearchQuery('');
-                }}
-                className="text-xs font-bold text-[#154d28] hover:underline flex items-center gap-1"
-              >
-                <span>Reset to All</span>
-              </button>
-            )}
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-2xs">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#154d28] flex items-center justify-center mx-auto mb-3">
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-1">
-                No matching products found
-              </h3>
-              <p className="text-xs text-slate-500 mb-4 max-w-sm mx-auto">
-                Try searching for something else or reset your category filters.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCategory('All');
-                  setSearchQuery('');
-                }}
-                className="px-4 py-2 bg-[#154d28] text-white rounded-xl text-xs font-bold shadow-md"
-              >
-                View All Products
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
+        {/* Product Catalog Grid with Immediate Filter & Compact 2-Column Mobile View */}
+        <ProductGrid />
 
         {/* Why Buy Direct from VijayaHub (Trust Section) */}
         <section className="bg-white border-y border-slate-200/80 py-10 px-4 sm:px-6 my-4">
