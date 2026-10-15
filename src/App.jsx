@@ -5,6 +5,7 @@ import JumbotailCategorySections from './components/JumbotailCategorySections';
 import JumbotailBottomNav from './components/JumbotailBottomNav';
 import HeroBanner from './components/HeroBanner';
 import ProductGrid from './components/ProductGrid';
+import CategoryPageView from './components/CategoryPageView';
 import ProductCard from './components/ProductCard';
 import ProductModal from './components/ProductModal';
 import CartDrawer from './components/CartDrawer';
@@ -123,75 +124,87 @@ function StorefrontContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f7f9] text-slate-800">
-      {/* Jumbotail Inspired Top Forest Green Header */}
-      <JumbotailHeader isDrawerOpen={isDrawerOpen} setIsDrawerOpen={setIsDrawerOpen} />
+      {selectedCategory !== 'All' ? (
+        /* Dedicated Category Page View Architecture */
+        <CategoryPageView
+          onBackToHome={() => {
+            setSelectedCategory('All');
+            setSearchQuery('');
+          }}
+        />
+      ) : (
+        /* Standard Home Storefront View */
+        <>
+          {/* Jumbotail Inspired Top Forest Green Header */}
+          <JumbotailHeader isDrawerOpen={isDrawerOpen} setIsDrawerOpen={setIsDrawerOpen} />
 
-      <main className="flex-1 pb-24 md:pb-12">
-        {/* Banner with Direct Hub Perks */}
-        {/* Banner with Direct Hub Perks */}
-        <HeroBanner />
+          <main className="flex-1 pb-24 md:pb-12">
+            {/* Banner with Direct Hub Perks */}
+            <HeroBanner />
 
-        {/* Jumbotail Signature 2-Column Mobile / 4-Column Desktop Category Showcase */}
-        <JumbotailCategorySections />
+            {/* Jumbotail Signature 2-Column Mobile / 4-Column Desktop Category Showcase */}
+            <JumbotailCategorySections />
 
-        {/* Product Catalog Grid with Immediate Filter & Compact 2-Column Mobile View */}
-        <ProductGrid />
+            {/* Product Catalog Grid with Immediate Filter & Compact 2-Column Mobile View */}
+            <ProductGrid />
 
-        {/* Why Buy Direct from VijayaHub (Trust Section) */}
-        <section className="bg-white border-y border-slate-200/80 py-10 px-4 sm:px-6 my-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center max-w-2xl mx-auto mb-8">
-              <span className="text-xs font-bold text-[#154d28] uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                Direct From Source
-              </span>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-2">
-                Why Visakhapatnam Chooses VijayaHub
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Direct warehouse pricing, genuine brand warranties, and zero shipping markups.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-[#154d28] flex items-center justify-center mb-3">
-                  <Store className="w-5 h-5" />
+            {/* Why Buy Direct from VijayaHub (Trust Section) */}
+            <section className="bg-white border-y border-slate-200/80 py-10 px-4 sm:px-6 my-4">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center max-w-2xl mx-auto mb-8">
+                  <span className="text-xs font-bold text-[#154d28] uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                    Direct From Source
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-2">
+                    Why Visakhapatnam Chooses VijayaHub
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    Direct warehouse pricing, genuine brand warranties, and zero shipping markups.
+                  </p>
                 </div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 mb-1">
-                  1. Free Central Hub Pickup
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Near RTC Complex in Dwaraka Nagar. Place your order online, skip the queue, and pick it up packed within 30 minutes.
-                </p>
-              </div>
 
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center mb-3">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 mb-1">
-                  2. 24-Hour Pickup Window
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Choose your preferred pickup slot. Your order remains safely reserved for 24 hours at our Dwaraka Nagar counter.
-                </p>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
+                    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-[#154d28] flex items-center justify-center mb-3">
+                      <Store className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 mb-1">
+                      1. Free Central Hub Pickup
+                    </h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Near RTC Complex in Dwaraka Nagar. Place your order online, skip the queue, and pick it up packed within 30 minutes.
+                    </p>
+                  </div>
 
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center mb-3">
-                  <ShieldCheck className="w-5 h-5" />
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
+                    <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center mb-3">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 mb-1">
+                      2. 24-Hour Pickup Window
+                    </h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Choose your preferred pickup slot. Your order remains safely reserved for 24 hours at our Dwaraka Nagar counter.
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center text-center">
+                    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center mb-3">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 mb-1">
+                      3. Verified Brand Warranty & FSSAI
+                    </h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      All dry fruits are fresh and FSSAI certified. All appliances carry 100% genuine brand warranty cards and GST invoices.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 mb-1">
-                  3. Verified Brand Warranty & FSSAI
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  All dry fruits are fresh and FSSAI certified. All appliances carry 100% genuine brand warranty cards and GST invoices.
-                </p>
               </div>
-            </div>
-          </div>
-        </section>
-      </main>
+            </section>
+          </main>
+        </>
+      )}
 
       <Footer onOpenPolicy={(policy) => setActivePolicy(policy)} />
 
