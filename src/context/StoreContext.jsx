@@ -111,7 +111,15 @@ export function StoreProvider({ children }) {
   const [completedOrder, setCompletedOrder] = useState(null);
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, _setSelectedCategory] = useState('All');
+  const setSelectedCategory = (cat) => {
+    _setSelectedCategory(cat);
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  };
   const [isCloudConnected, setIsCloudConnected] = useState(isSupabaseConfigured);
   const [isCloudLoaded, setIsCloudLoaded] = useState(!isSupabaseConfigured);
   const [newOrderAlert, setNewOrderAlert] = useState(null);

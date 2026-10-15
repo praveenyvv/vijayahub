@@ -6,11 +6,10 @@ import { matchProductCategory } from './ProductGrid';
 
 /**
  * Reusable Minimalist Wholesale Category Card (Jumbotail Style)
- * - 2-column on mobile (grid-cols-2), expanding to 4-column on desktop (md:grid-cols-4)
- * - Top 65-70% full-bleed, high-resolution product photography
- * - Item count pill badge (e.g. "12 Items")
- * - Bottom crisp white container with bold high-contrast black typography
- * - Highlighted active state with brand border & tint when selected
+ * - Elevated rounded-2xl container with subtle drop shadow
+ * - Aspect ratio closer to 4:3 (h-36 sm:h-44 md:h-52) so 2 clean rows breathe on mobile
+ * - Centered bold, high-contrast typography
+ * - Dynamic item counts and active highlight border
  */
 export function CategoryCard({ subCategory, count, isActive, onClick }) {
   return (
@@ -24,14 +23,14 @@ export function CategoryCard({ subCategory, count, isActive, onClick }) {
           onClick();
         }
       }}
-      className={`group relative bg-white rounded-xl shadow-xs hover:shadow-md overflow-hidden flex flex-col cursor-pointer transition-all duration-200 active:scale-[0.98] ${
+      className={`group relative bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md overflow-hidden flex flex-col cursor-pointer transition-all duration-200 active:scale-[0.98] ${
         isActive
           ? 'ring-2 ring-[#154d28] border-2 border-[#154d28] shadow-md bg-emerald-50/40'
-          : 'border border-gray-200 hover:border-[#154d28]/60'
+          : 'hover:border-[#154d28]/60'
       }`}
     >
-      {/* Visual Photo (65-70% height) */}
-      <div className="relative h-24 sm:h-32 md:h-36 w-full overflow-hidden bg-slate-50 shrink-0">
+      {/* Category Photography (4:3 aspect ratio, comfortable height) */}
+      <div className="relative h-36 sm:h-44 md:h-52 w-full overflow-hidden bg-slate-100 shrink-0">
         <img
           src={subCategory.image}
           alt={subCategory.name}
@@ -43,24 +42,24 @@ export function CategoryCard({ subCategory, count, isActive, onClick }) {
         />
 
         {/* Item Count Pill Badge */}
-        <span className="absolute top-1.5 right-1.5 bg-slate-900/80 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full backdrop-blur-xs shadow-xs">
+        <span className="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs shadow-xs">
           {count} {count === 1 ? 'Item' : 'Items'}
         </span>
 
         {/* Active Check Indicator */}
         {isActive && (
-          <span className="absolute top-1.5 left-1.5 bg-[#154d28] text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-xs flex items-center gap-0.5">
-            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-300" />
+          <span className="absolute top-2 left-2 bg-[#154d28] text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3 text-emerald-300" />
             Active
           </span>
         )}
       </div>
 
-      {/* Crisp White Container with Bold Typography */}
-      <div className={`p-2 text-center flex items-center justify-center min-h-[42px] sm:min-h-[48px] ${
+      {/* Crisp White Container with Bold Centered Typography */}
+      <div className={`p-3 text-center flex items-center justify-center min-h-[50px] sm:min-h-[56px] ${
         isActive ? 'bg-emerald-50/60' : 'bg-white'
       }`}>
-        <span className={`text-[11px] sm:text-xs md:text-sm font-bold leading-tight transition-colors line-clamp-1 ${
+        <span className={`text-xs sm:text-sm font-black tracking-tight leading-snug transition-colors line-clamp-1 ${
           isActive ? 'text-[#154d28]' : 'text-gray-900 group-hover:text-[#154d28]'
         }`}>
           {subCategory.name}
@@ -73,9 +72,8 @@ export function CategoryCard({ subCategory, count, isActive, onClick }) {
 /**
  * CategoryGrid Component
  * - 2-column grid on mobile (grid-cols-2), 4-column on desktop (md:grid-cols-4)
- * - Sets dedicated category filter immediately without page jump-scrolling
- * - "All Categories" reset pill tag for fast navigation
- * - Dynamic product counts calculated per category
+ * - Elevated cards matching Jumbotail's height and aspect ratio
+ * - Instant scroll reset to top (y = 0) upon category selection
  */
 export default function CategoryGrid() {
   const {
@@ -86,18 +84,27 @@ export default function CategoryGrid() {
     setSearchQuery
   } = useStore();
 
-  // Helper to compute item counts dynamically matching each category
   const getItemCount = (item) => {
     return products.filter((p) => matchProductCategory(p, item.name) || matchProductCategory(p, item.searchKeyword)).length;
   };
 
   const handleSubCategoryClick = (subCategory) => {
-    // Immediately filter by category without any jump-scrolling
+    // Instant scroll to top before entering category
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
     setSelectedCategory(subCategory.name);
     setSearchQuery('');
   };
 
   const handleResetAll = () => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
     setSelectedCategory('All');
     setSearchQuery('');
   };
@@ -142,10 +149,10 @@ export default function CategoryGrid() {
         </button>
       </div>
 
-      {/* Category Sections: 2-Col Mobile (grid-cols-2), 4-Col Desktop */}
-      <div className="space-y-4 sm:space-y-6">
+      {/* Category Sections: Elevated 4:3 Cards */}
+      <div className="space-y-5 sm:space-y-7">
         {MAIN_CATEGORY_SECTIONS.map((section) => (
-          <div key={section.id} className="space-y-2">
+          <div key={section.id} className="space-y-2.5">
             <div className="flex items-center gap-1.5">
               <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
                 {section.iconBadge}
@@ -155,8 +162,8 @@ export default function CategoryGrid() {
               </h3>
             </div>
 
-            {/* 2 columns on mobile, 4 columns on desktop */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+            {/* 2 columns on mobile, 4 columns on desktop with generous breathing room */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
               {section.subCategories.map((subCategory) => {
                 const count = getItemCount(subCategory);
                 const isActive =

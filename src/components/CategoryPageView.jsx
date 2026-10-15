@@ -65,6 +65,23 @@ export default function CategoryPageView({ onBackToHome }) {
 
   const [inCategorySearch, setInCategorySearch] = useState('');
 
+  // Instant scroll to top (y = 0) whenever CategoryPageView mounts or category changes
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+    const raf = requestAnimationFrame(() => {
+      try {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      } catch {
+        window.scrollTo(0, 0);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectedCategory]);
+
   // Browser history popstate handler
   useEffect(() => {
     // Push history state when category is active
@@ -83,6 +100,11 @@ export default function CategoryPageView({ onBackToHome }) {
     }
 
     const handlePopState = (e) => {
+      try {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      } catch {
+        window.scrollTo(0, 0);
+      }
       if (!e.state || e.state.view !== 'category') {
         setSelectedCategory('All');
         setInCategorySearch('');
@@ -96,6 +118,11 @@ export default function CategoryPageView({ onBackToHome }) {
   }, [selectedCategory, setSelectedCategory]);
 
   const handleBack = () => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
     if (onBackToHome) {
       onBackToHome();
     } else {

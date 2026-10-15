@@ -109,6 +109,14 @@ function StorefrontContent() {
     }
   }, [activeOrder?.id]);
 
+  // Instant top scroll on category changes
+  React.useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  }, [selectedCategory]);
 
   if (isAdminMode) {
     return (
