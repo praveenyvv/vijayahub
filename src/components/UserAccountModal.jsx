@@ -154,6 +154,30 @@ export default function UserAccountModal() {
     setAuthStage('phone');
   };
 
+  // Filter orders matching the logged in user phone, id, or email safely
+  const cleanCurrentPhone = currentUser?.phone?.replace(/\D/g, '');
+  const userOrders = React.useMemo(() => {
+    if (!currentUser) return [];
+    const allOrders = Array.isArray(orders) ? orders : [];
+    return allOrders.filter((o) => {
+      const orderPhone = (o.customer?.phone || '').replace(/\D/g, '');
+      const phoneMatch = Boolean(
+        cleanCurrentPhone && orderPhone && orderPhone.endsWith(cleanCurrentPhone.slice(-10))
+      );
+      const userMatch = Boolean(
+        currentUser.id &&
+          (o.userId === currentUser.id ||
+            o.user_id === currentUser.id ||
+            o.customer?.userId === currentUser.id)
+      );
+      const emailMatch = Boolean(currentUser.email && o.customer?.email === currentUser.email);
+      return phoneMatch || userMatch || emailMatch;
+    });
+  }, [currentUser, orders, cleanCurrentPhone]);
+
+  // Don't render modal when closed
+  if (!isAuthModalOpen) return null;
+
   return (
     <div
       onClick={handleCloseModal}
@@ -201,7 +225,7 @@ export default function UserAccountModal() {
               }`}
             >
               <Package className="w-4 h-4" />
-              <span>My Orders ({userOrders.length})</span>
+              <span>My Orders ({userOrders?.length || 0})</span>
             </button>
             <button
               onClick={() => setActiveTab('profile')}
@@ -387,7 +411,7 @@ export default function UserAccountModal() {
           ) : activeTab === 'orders' ? (
             /* TAB 1: ORDER TRACKER (BLINKIT / ZEPTO STYLE) */
             <div className="space-y-4">
-              {userOrders.length === 0 ? (
+              {(userOrders?.length || 0) === 0 ? (
                 <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 p-6">
                   <Package className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                   <h4 className="font-bold text-slate-800 text-sm mb-1">No orders found for this number</h4>
@@ -396,13 +420,13 @@ export default function UserAccountModal() {
                   </p>
                   <button
                     onClick={() => setIsAuthModalOpen(false)}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs"
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs cursor-pointer"
                   >
                     Start Shopping
                   </button>
                 </div>
               ) : (
-                userOrders.map((order) => {
+                (userOrders || []).map((order) => {
                   const isCancelled = order.status === 'Cancelled' || order.status === 'Expired';
                   const isCompleted = order.status === 'Completed';
 
