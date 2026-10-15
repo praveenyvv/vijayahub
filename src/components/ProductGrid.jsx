@@ -66,6 +66,10 @@ export default function ProductGrid() {
 
   const filteredProducts = React.useMemo(() => {
     return products.filter((p) => {
+      // In-stock only filter: hide out-of-stock products
+      const stockCount = Number(p.stock ?? p.inventory ?? 0);
+      if (stockCount <= 0) return false;
+
       const matchesCategory = matchProductCategory(p, selectedCategory);
       const matchesSearch =
         !searchQuery ||

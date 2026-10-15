@@ -134,9 +134,12 @@ export default function CategoryPageView({ onBackToHome }) {
     }
   };
 
-  // Filter products matching this category and in-category search query
+  // Filter in-stock only products matching this category and in-category search query
   const categoryProducts = React.useMemo(() => {
     return products.filter((p) => {
+      const stockCount = Number(p.stock ?? p.inventory ?? 0);
+      if (stockCount <= 0) return false;
+
       const matchCat = matchProductCategory(p, selectedCategory);
       if (!matchCat) return false;
       if (!inCategorySearch.trim()) return true;

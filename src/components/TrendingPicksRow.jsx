@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Plus, Minus, Star, ShoppingBag, Eye } from 'lucide-react';
+import { Flame, Plus, Minus } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 /**
@@ -11,9 +11,13 @@ import { useStore } from '../context/StoreContext';
 export default function TrendingPicksRow() {
   const { products, addToCart, updateCartQuantity, cart, setSelectedProduct } = useStore();
 
-  // Curate 6-8 fast-moving popular items across Rice, Cashews, Oil, Dal, Almonds, Mixer, etc.
+  // Curate 6-8 fast-moving popular items across in-stock Rice, Cashews, Oil, Dal, Almonds, Mixer, etc.
   const trendingProducts = React.useMemo(() => {
     if (!products || products.length === 0) return [];
+
+    // Filter ONLY in-stock products
+    const inStockProducts = products.filter((p) => Number(p.stock ?? p.inventory ?? 0) > 0);
+    if (inStockProducts.length === 0) return [];
 
     // Prioritize high-demand daily staples
     const priorityKeywords = ['rice', 'cashew', 'almond', 'oil', 'toor', 'mixer', 'atta', 'walnut'];
@@ -21,7 +25,7 @@ export default function TrendingPicksRow() {
     const usedIds = new Set();
 
     for (const kw of priorityKeywords) {
-      const match = products.find(
+      const match = inStockProducts.find(
         (p) =>
           !usedIds.has(p.id) &&
           (p.title.toLowerCase().includes(kw) ||
@@ -35,9 +39,9 @@ export default function TrendingPicksRow() {
       if (curated.length >= 8) break;
     }
 
-    // Fallback: fill up to 6-8 from rest of products
+    // Fallback: fill up to 6-8 from rest of in-stock products
     if (curated.length < 6) {
-      for (const p of products) {
+      for (const p of inStockProducts) {
         if (!usedIds.has(p.id)) {
           curated.push(p);
           usedIds.add(p.id);

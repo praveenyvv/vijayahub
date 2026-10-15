@@ -11,13 +11,12 @@ export { CategoryGrid, CategoryCard, TrendingPicksRow };
 /**
  * Main Jumbotail Visual Showcase Component:
  * - Section 1: "🔥 Popular Wholesale Picks" (Top Trending Horizontal Row with instant 1-Click ADD)
- * - Section 2: Jumbotail Elevated Category Grid (Aspect ratio 4:3, h-36 sm:h-44, rounded-2xl)
+ * - Section 2: Jumbotail Elevated Category Grid with Clear Section Hierarchy (text-lg sm:text-xl font-bold)
  */
 export default function JumbotailCategorySections() {
   const { searchQuery, setSearchQuery, selectedCategory, setSelectedCategory, products } = useStore();
 
   const handleSubCategoryClick = (subCategory) => {
-    // Instant scroll to top before entering category
     try {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     } catch {
@@ -27,8 +26,12 @@ export default function JumbotailCategorySections() {
     setSearchQuery('');
   };
 
+  // In-stock only item count per category
   const getItemCount = (item) => {
-    return products.filter((p) => matchProductCategory(p, item.name) || matchProductCategory(p, item.searchKeyword)).length;
+    return products.filter((p) => {
+      const stock = Number(p.stock ?? p.inventory ?? 0);
+      return stock > 0 && (matchProductCategory(p, item.name) || matchProductCategory(p, item.searchKeyword));
+    }).length;
   };
 
   const isAllActive = selectedCategory === 'All' && !searchQuery;
@@ -41,9 +44,9 @@ export default function JumbotailCategorySections() {
       <TrendingPicksRow />
 
       {/* ============================================================== */}
-      {/* SECTION 2: Category Sections (Elevated 4:3 Aspect Ratio Cards)  */}
+      {/* SECTION 2: Category Sections (Prominent Heading Hierarchy)     */}
       {/* ============================================================== */}
-      <section className="space-y-5 sm:space-y-7">
+      <section className="space-y-6 sm:space-y-8">
         <div className="flex items-center justify-between pb-1 border-b border-gray-200">
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
@@ -77,15 +80,14 @@ export default function JumbotailCategorySections() {
         </div>
 
         {MAIN_CATEGORY_SECTIONS.map((section) => (
-          <div key={section.id} className="space-y-2.5">
-            <div className="flex items-center gap-1.5">
-              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
+          <div key={section.id} className="space-y-3">
+            {/* Main Section Heading: text-lg sm:text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2 */}
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-sm font-bold shrink-0">
                 {section.iconBadge}
               </span>
-              <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-gray-900 tracking-tight">
-                {section.title}
-              </h3>
-            </div>
+              <span>{section.title}</span>
+            </h3>
 
             {/* 2-column mobile, 4-column desktop with generous breathing room */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">

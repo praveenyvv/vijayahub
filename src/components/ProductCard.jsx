@@ -24,8 +24,9 @@ export default function ProductCard({ product }) {
   const savings = Math.max(0, displayMrp - displayPrice);
   const discountPercent = displayMrp > 0 ? Math.round((savings / displayMrp) * 100) : 0;
 
-  const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 5;
+  const stockCount = Number(product.stock ?? product.inventory ?? 0);
+  const isOutOfStock = stockCount <= 0;
+  const isLowStock = stockCount > 0 && stockCount <= 5;
 
   // Check if this specific item/variant is currently in cart
   const cartKey = selectedVariant ? `${product.id}-${selectedVariant.weight}` : product.id;

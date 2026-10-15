@@ -7,9 +7,9 @@ import { matchProductCategory } from './ProductGrid';
 /**
  * Reusable Minimalist Wholesale Category Card (Jumbotail Style)
  * - Elevated rounded-2xl container with subtle drop shadow
- * - Aspect ratio closer to 4:3 (h-36 sm:h-44 md:h-52) so 2 clean rows breathe on mobile
- * - Centered bold, high-contrast typography
- * - Dynamic item counts and active highlight border
+ * - Aspect ratio closer to 4:3 (h-36 sm:h-44 md:h-52)
+ * - Card title: text-sm font-semibold text-gray-800 (clean contrast against bold section header)
+ * - In-stock only count pill badge
  */
 export function CategoryCard({ subCategory, count, isActive, onClick }) {
   return (
@@ -41,9 +41,9 @@ export function CategoryCard({ subCategory, count, isActive, onClick }) {
           }}
         />
 
-        {/* Item Count Pill Badge */}
+        {/* In-Stock Item Count Pill Badge */}
         <span className="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs shadow-xs">
-          {count} {count === 1 ? 'Item' : 'Items'}
+          {count} {count === 1 ? 'In Stock' : 'In Stock'}
         </span>
 
         {/* Active Check Indicator */}
@@ -55,12 +55,12 @@ export function CategoryCard({ subCategory, count, isActive, onClick }) {
         )}
       </div>
 
-      {/* Crisp White Container with Bold Centered Typography */}
+      {/* Crisp White Container with Sub-Category Card Title (text-sm font-semibold text-gray-800) */}
       <div className={`p-3 text-center flex items-center justify-center min-h-[50px] sm:min-h-[56px] ${
         isActive ? 'bg-emerald-50/60' : 'bg-white'
       }`}>
-        <span className={`text-xs sm:text-sm font-black tracking-tight leading-snug transition-colors line-clamp-1 ${
-          isActive ? 'text-[#154d28]' : 'text-gray-900 group-hover:text-[#154d28]'
+        <span className={`text-sm font-semibold transition-colors line-clamp-1 ${
+          isActive ? 'text-[#154d28] font-bold' : 'text-gray-800 group-hover:text-[#154d28]'
         }`}>
           {subCategory.name}
         </span>
@@ -71,8 +71,9 @@ export function CategoryCard({ subCategory, count, isActive, onClick }) {
 
 /**
  * CategoryGrid Component
+ * - Main Section Headings: text-lg sm:text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2
+ * - In-stock only item badge counting
  * - 2-column grid on mobile (grid-cols-2), 4-column on desktop (md:grid-cols-4)
- * - Elevated cards matching Jumbotail's height and aspect ratio
  * - Instant scroll reset to top (y = 0) upon category selection
  */
 export default function CategoryGrid() {
@@ -84,12 +85,17 @@ export default function CategoryGrid() {
     setSearchQuery
   } = useStore();
 
+  // In-stock only item count per category
   const getItemCount = (item) => {
-    return products.filter((p) => matchProductCategory(p, item.name) || matchProductCategory(p, item.searchKeyword)).length;
+    return products.filter((p) => {
+      const stock = Number(p.stock ?? p.inventory ?? 0);
+      return stock > 0 && (matchProductCategory(p, item.name) || matchProductCategory(p, item.searchKeyword));
+    }).length;
   };
 
+  const totalInStock = products.filter((p) => Number(p.stock ?? p.inventory ?? 0) > 0).length;
+
   const handleSubCategoryClick = (subCategory) => {
-    // Instant scroll to top before entering category
     try {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     } catch {
@@ -124,7 +130,7 @@ export default function CategoryGrid() {
               Wholesale Categories
             </h2>
             <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium">
-              Direct Dwaraka Nagar Hub inventory • {products.length} Products
+              Direct Dwaraka Nagar Hub inventory • {totalInStock} In-Stock Products
             </p>
           </div>
         </div>
@@ -144,25 +150,24 @@ export default function CategoryGrid() {
           <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
             isAllActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
           }`}>
-            {products.length}
+            {totalInStock}
           </span>
         </button>
       </div>
 
-      {/* Category Sections: Elevated 4:3 Cards */}
-      <div className="space-y-5 sm:space-y-7">
+      {/* Category Sections: Prominent Heading Hierarchy & Elevated 4:3 Cards */}
+      <div className="space-y-6 sm:space-y-8">
         {MAIN_CATEGORY_SECTIONS.map((section) => (
-          <div key={section.id} className="space-y-2.5">
-            <div className="flex items-center gap-1.5">
-              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
+          <div key={section.id} className="space-y-3">
+            {/* Main Section Heading: text-lg sm:text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2 */}
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-white text-slate-800 shadow-2xs border border-gray-200 flex items-center justify-center text-sm font-bold shrink-0">
                 {section.iconBadge}
               </span>
-              <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-gray-900 tracking-tight">
-                {section.title}
-              </h3>
-            </div>
+              <span>{section.title}</span>
+            </h3>
 
-            {/* 2 columns on mobile, 4 columns on desktop with generous breathing room */}
+            {/* 2 columns on mobile, 4 columns on desktop */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
               {section.subCategories.map((subCategory) => {
                 const count = getItemCount(subCategory);
