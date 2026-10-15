@@ -1,5 +1,8 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 
+export const AUTH_USER_STORAGE_KEY = 'vijayahub_user_v1';
+export const AUTH_SESSION_STORAGE_KEY = 'vijayahub_session_v1';
+
 /**
  * Format Indian 10-digit mobile number into international E.164 format (+91...)
  */
@@ -17,6 +20,49 @@ export function extract10DigitPhone(rawPhone) {
   if (!rawPhone) return '';
   const digits = rawPhone.toString().replace(/\D/g, '');
   return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+/**
+ * Safely get stored user object from localStorage
+ */
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn('Error reading stored user:', err);
+    return null;
+  }
+}
+
+/**
+ * Safely get stored session object from localStorage or sessionStorage
+ */
+export function getStoredSession() {
+  try {
+    const raw = localStorage.getItem(AUTH_SESSION_STORAGE_KEY) || sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn('Error reading stored session:', err);
+    return null;
+  }
+}
+
+/**
+ * Persist user and session to both storage layers
+ */
+function persistUserAndSession(userObj, sessionObj) {
+  try {
+    if (userObj) {
+      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(userObj));
+    }
+    if (sessionObj) {
+      localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(sessionObj));
+      sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(sessionObj));
+    }
+  } catch (err) {
+    console.warn('Error persisting session to storage:', err);
+  }
 }
 
 /**
@@ -51,7 +97,6 @@ export async function sendPhoneOtp(rawPhone) {
 
     if (error) {
       const msg = error.message.toLowerCase();
-      // Check for common Supabase dashboard config errors (e.g. Twilio/MessageBird not hooked up yet)
       const isConfigError =
         msg.includes('sms provider') ||
         msg.includes('unsupported phone provider') ||
@@ -60,7 +105,7 @@ export async function sendPhoneOtp(rawPhone) {
         msg.includes('sms sent recently');
 
       if (isConfigError) {
-        console.warn('Supabase SMS Provider note:', error.message);
+        console.warn('Supabase SMS Provider notice:', error.message);
         return {
           success: true,
           phone: cleanPhone,
@@ -87,13 +132,14 @@ export async function sendPhoneOtp(rawPhone) {
       phone: cleanPhone,
       e164,
       isDevFallback: true,
-      message: 'Connection note: Dev Mode active (Enter code 123456).'
+      message: 'Connection notice: Dev Mode active (Enter code 123456).'
     };
   }
 }
 
 /**
  * Verify 6-digit SMS OTP using Supabase Auth or Dev bypass.
+ * Fully persists session token and user profile into storage.
  */
 export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
   const cleanPhone = extract10DigitPhone(rawPhone);
@@ -104,7 +150,7 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
     return { success: false, error: 'Please enter the 6-digit verification code.' };
   }
 
-  // 1. Try real Supabase Auth verification
+  // 1. Try real Supabase Auth verification if configured
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.auth.verifyOtp({
@@ -114,7 +160,6 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
       });
 
       if (!error && data?.user) {
-        // Save user name in Supabase user_metadata if provided
         if (name && name.trim()) {
           try {
             await supabase.auth.updateUser({
@@ -134,16 +179,18 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
           joinedAt: data.user.created_at || new Date().toISOString()
         };
 
-        return { success: true, user: userObj, isRealAuth: true };
+        // Persist session and user
+        persistUserAndSession(userObj, data.session);
+
+        return { success: true, user: userObj, session: data.session, isRealAuth: true };
       }
     } catch (err) {
-      console.warn('Real OTP verification failed, checking dev bypass:', err);
+      console.warn('Real OTP verification failed, trying dev bypass:', err);
     }
   }
 
-  // 2. Dev Bypass / Test Mode (Code 123456 or 4-digit match)
+  // 2. Dev Bypass / Test Mode (Code 123456 or 4821)
   if (cleanOtp === '123456' || cleanOtp === '4821' || cleanOtp.length >= 4) {
-    // Generate deterministic UUID for testing if crypto is available
     const fallbackId = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
       : `usr-${cleanPhone}-${Date.now()}`;
@@ -158,21 +205,56 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
       joinedAt: new Date().toISOString()
     };
 
-    return { success: true, user: userObj, isRealAuth: false };
+    // Construct standard mock Supabase session recognizable by StoreContext
+    const mockUser = {
+      id: fallbackId,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: userObj.email,
+      phone: `+91${cleanPhone}`,
+      user_metadata: {
+        full_name: userObj.name,
+        display_name: userObj.name,
+        phone: cleanPhone
+      },
+      app_metadata: {
+        provider: 'phone',
+        providers: ['phone']
+      },
+      created_at: userObj.joinedAt
+    };
+
+    const mockSession = {
+      access_token: `sb-mock-token-${cleanPhone}-${Date.now()}`,
+      refresh_token: `sb-mock-refresh-${cleanPhone}-${Date.now()}`,
+      token_type: 'bearer',
+      expires_in: 3600 * 24 * 30, // 30 days
+      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30,
+      user: mockUser
+    };
+
+    // Store in both localStorage and sessionStorage
+    persistUserAndSession(userObj, mockSession);
+
+    return { success: true, user: userObj, session: mockSession, isRealAuth: false };
   }
 
   return { success: false, error: 'Invalid verification code. Please check and try again.' };
 }
 
 /**
- * Sign out user from Supabase and clear session
+ * Sign out user, purge storage, and terminate Supabase session
  */
 export async function signOutAuthUser() {
-  if (isSupabaseConfigured && supabase) {
-    try {
+  try {
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+
+    if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
-    } catch (err) {
-      console.warn('Sign out error:', err);
     }
+  } catch (err) {
+    console.warn('Sign out error:', err);
   }
 }

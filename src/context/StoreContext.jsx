@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { INITIAL_PRODUCTS, INITIAL_ORDERS, VIZAG_STORE_INFO } from '../data/initialData';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { playOrderNotificationChime } from '../utils/audioAlert';
+import { getStoredUser, getStoredSession, AUTH_USER_STORAGE_KEY } from '../services/authService';
 
 const StoreContext = createContext();
 
@@ -44,6 +45,8 @@ export function StoreProvider({ children }) {
   // 4. User profile state (persisted)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
+      const stored = getStoredUser();
+      if (stored) return stored;
       const saved = localStorage.getItem(USER_STORAGE_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
@@ -143,12 +146,22 @@ export function StoreProvider({ children }) {
     }
   }, [currentUser]);
 
-  // Sync with Supabase Auth Session
+  // Sync with Supabase Auth Session & Stored Local Session
   useEffect(() => {
+    // 1. Recover stored valid session or dev mock user immediately
+    const storedUser = getStoredUser();
+    if (storedUser && !currentUser) {
+      setCurrentUser(storedUser);
+    }
+
     if (!isSupabaseConfigured || !supabase) return;
 
-    // Check existing Supabase session on startup
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // 2. Query Supabase for active server session
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('Supabase getSession notice:', error.message);
+        return;
+      }
       if (session?.user) {
         const rawPhone = session.user.phone || session.user.user_metadata?.phone || '';
         const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
@@ -186,7 +199,11 @@ export function StoreProvider({ children }) {
           isPhoneVerified: true
         }));
       } else if (_event === 'SIGNED_OUT') {
-        setCurrentUser(null);
+        // Prevent auto-clearing session if user has a valid dev/local session stored
+        const activeLocalSession = getStoredSession();
+        if (!activeLocalSession) {
+          setCurrentUser(null);
+        }
       }
     });
 
@@ -1098,6 +1115,8 @@ export function StoreProvider({ children }) {
         setCurrentUser,
         isAuthModalOpen,
         setIsAuthModalOpen,
+        isUserModalOpen: isAuthModalOpen,
+        setIsUserModalOpen: setIsAuthModalOpen,
         completedOrder,
         setCompletedOrder,
         invoiceOrder,

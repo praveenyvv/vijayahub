@@ -110,6 +110,8 @@ export default function UserAccountModal() {
         setAuthStage('phone');
         setOtpCode('');
         setStatusMessage({ text: 'Signed in successfully!', type: 'success' });
+        // Close modal immediately so storefront advances into logged-in state
+        setIsAuthModalOpen(false);
       } else {
         setStatusMessage({ text: result.error || 'Invalid OTP code. Please check and re-enter.', type: 'error' });
       }
@@ -123,14 +125,21 @@ export default function UserAccountModal() {
   const handleDevQuickVerify = async () => {
     setOtpCode('123456');
     setIsLoading(true);
+    setStatusMessage({ text: '', type: '' });
     try {
-      const result = await verifyPhoneOtp(loginPhone, '123456', loginName);
+      const result = await verifyPhoneOtp(loginPhone || '9848012345', '123456', loginName);
       if (result.success && result.user) {
         setCurrentUser(result.user);
         setActiveTab('orders');
         setAuthStage('phone');
         setOtpCode('');
+        // Close modal immediately so storefront advances into logged-in state
+        setIsAuthModalOpen(false);
+      } else {
+        setStatusMessage({ text: result.error || 'Quick verify failed.', type: 'error' });
       }
+    } catch (err) {
+      console.warn('Dev verify error:', err);
     } finally {
       setIsLoading(false);
     }

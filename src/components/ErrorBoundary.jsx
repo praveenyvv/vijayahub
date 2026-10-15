@@ -16,12 +16,14 @@ export default class ErrorBoundary extends React.Component {
 
   handleReload = () => {
     try {
-      localStorage.removeItem('vijayahub_products_v1');
+      // Execute clean storage wipe before page reload to prevent corrupted local data loop
+      localStorage.clear();
       sessionStorage.clear();
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('Error clearing browser storage:', e);
     }
-    window.location.reload();
+    // Hard reload from server
+    window.location.href = window.location.pathname;
   };
 
   render() {
