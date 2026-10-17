@@ -86,3 +86,20 @@ CREATE POLICY "Allow public update on feedbacks" ON public.feedbacks FOR UPDATE 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.feedbacks;
+
+-- 6. Create STORE_SETTINGS table (Store Open/Closed master status)
+CREATE TABLE IF NOT EXISTS public.store_settings (
+  id TEXT PRIMARY KEY,
+  is_open BOOLEAN DEFAULT true,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read on store_settings" ON public.store_settings FOR SELECT USING (true);
+CREATE POLICY "Allow public insert/update on store_settings" ON public.store_settings FOR ALL USING (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.store_settings;
+
+-- Seed default store open status
+INSERT INTO public.store_settings (id, is_open) VALUES ('store_status', true)
+ON CONFLICT (id) DO NOTHING;
+

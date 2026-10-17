@@ -70,7 +70,9 @@ export default function AdminDashboard() {
     categories,
     setCategories,
     feedbacks,
-    seedDefaultCatalog
+    seedDefaultCatalog,
+    isStoreOpen,
+    updateStoreOpen
   } = useStore();
 
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'customers', 'feedbacks', 'settings'
@@ -472,6 +474,43 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Master Store Status Toggle Switch */}
+            <button
+              type="button"
+              onClick={() => updateStoreOpen(!isStoreOpen)}
+              title={
+                isStoreOpen
+                  ? 'Store is currently OPEN. Click to temporarily close store and pause incoming counter orders.'
+                  : 'Store is currently CLOSED. Click to open store for customer counter pickups.'
+              }
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2.5 transition-all shadow-xs cursor-pointer border ${
+                isStoreOpen
+                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-400'
+                  : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-400 animate-pulse'
+              }`}
+            >
+              <span className="relative flex h-3 w-3">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    isStoreOpen ? 'bg-emerald-400' : 'bg-rose-400'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-3 w-3 ${
+                    isStoreOpen ? 'bg-emerald-500' : 'bg-rose-500'
+                  }`}
+                />
+              </span>
+              <span>{isStoreOpen ? '🟢 Store Open for Counter Pickups' : '🔴 Store Temporarily Closed'}</span>
+              <span
+                className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full font-black ${
+                  isStoreOpen ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                }`}
+              >
+                {isStoreOpen ? 'Active' : 'Paused'}
+              </span>
+            </button>
+
             <button
               onClick={() => {
                 sessionStorage.removeItem('vijayahub_staff_auth');
@@ -1281,9 +1320,23 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Pickup Location Settings */}
               <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Store className="w-4 h-4 text-amber-600" />
-                  <h4 className="font-bold text-sm text-slate-900">Dwaraka Nagar Hub Location</h4>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-4 h-4 text-amber-600" />
+                    <h4 className="font-bold text-sm text-slate-900">Dwaraka Nagar Hub Location</h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateStoreOpen(!isStoreOpen)}
+                    className={`text-[11px] font-extrabold px-2.5 py-1 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
+                      isStoreOpen
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                        : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+                    }`}
+                  >
+                    <span>{isStoreOpen ? '🟢 Store Open' : '🔴 Closed'}</span>
+                    <span className="text-[9px] opacity-75 underline">(Click to toggle)</span>
+                  </button>
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-700">
                   <p><strong>Hub Name:</strong> {storeInfo.name}</p>

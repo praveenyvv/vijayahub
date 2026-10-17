@@ -105,7 +105,8 @@ export default function CheckoutModal() {
     currentUser,
     setCurrentUser,
     orders,
-    products
+    products,
+    isStoreOpen
   } = useStore();
 
   const availablePickupSlots = React.useMemo(() => getAvailablePickupSlots(), [isCheckoutOpen]);
@@ -202,6 +203,11 @@ export default function CheckoutModal() {
   const handleProceedToPayment = (e) => {
     if (e) e.preventDefault();
 
+    if (!isStoreOpen) {
+      alert('Store is temporarily closed for counter pickups. Please check back soon.');
+      return;
+    }
+
     if (!customerName.trim()) {
       alert('Please enter your full name.');
       return;
@@ -253,6 +259,11 @@ export default function CheckoutModal() {
 
   // Step 2: Finalize Order after Payment
   const handleConfirmPaid = () => {
+    if (!isStoreOpen) {
+      alert('Store is temporarily closed for counter pickups. Please check back soon.');
+      return;
+    }
+
     if (!upiRefNumber.trim()) {
       const confirmed = window.confirm(
         `Have you completed the UPI payment of ₹${finalTotal} to ${upiId}? Click OK if paid, or enter your 12-digit UTR/Ref number.`
@@ -570,18 +581,28 @@ export default function CheckoutModal() {
 
             {/* Bottom Proceed Button */}
             <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleProceedToPayment}
-                className="w-full py-4 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-600/30 transition-all active:scale-[0.99]"
-              >
-                <span>
-                  {paymentMethod === 'upi_qr'
-                    ? `Proceed to UPI Payment (₹${finalTotal.toLocaleString('en-IN')})`
-                    : `Confirm Store Pickup Order (₹${finalTotal.toLocaleString('en-IN')})`}
-                </span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {!isStoreOpen ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-4 px-4 bg-slate-200 text-slate-500 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-slate-300 uppercase tracking-wider"
+                >
+                  <span>Store Closed - Reopening Soon</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleProceedToPayment}
+                  className="w-full py-4 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-600/30 transition-all active:scale-[0.99] cursor-pointer"
+                >
+                  <span>
+                    {paymentMethod === 'upi_qr'
+                      ? `Proceed to UPI Payment (₹${finalTotal.toLocaleString('en-IN')})`
+                      : `Confirm Store Pickup Order (₹${finalTotal.toLocaleString('en-IN')})`}
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -694,24 +715,34 @@ export default function CheckoutModal() {
 
             {/* Confirm Payment Action Button */}
             <div className="space-y-2">
-              <button
-                type="button"
-                onClick={handleConfirmPaid}
-                disabled={isProcessingPayment}
-                className="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-[0.99] disabled:opacity-50"
-              >
-                {isProcessingPayment ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Reserving Items & Placing Order...
-                  </span>
-                ) : (
-                  <>
-                    <span>I Have Paid ₹{finalTotal.toLocaleString('en-IN')} • Place Order</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {!isStoreOpen ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-4 px-4 bg-slate-200 text-slate-500 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-slate-300 uppercase tracking-wider"
+                >
+                  <span>Store Closed - Reopening Soon</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConfirmPaid}
+                  disabled={isProcessingPayment}
+                  className="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                >
+                  {isProcessingPayment ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Reserving Items & Placing Order...
+                    </span>
+                  ) : (
+                    <>
+                      <span>I Have Paid ₹{finalTotal.toLocaleString('en-IN')} • Place Order</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"

@@ -49,7 +49,8 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
     selectedCategory,
     setSelectedCategory,
     categories,
-    isCloudLoaded
+    isCloudLoaded,
+    isStoreOpen
   } = useStore();
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -138,10 +139,17 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
         {/* Top Micro Location Bar */}
         <div className="bg-[#0f3d1f] text-emerald-100 text-[11px] px-3 py-1.5 flex items-center justify-between border-b border-emerald-800/40">
           <div className="flex items-center gap-2 truncate">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] border border-emerald-500/40 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Open Now
-            </span>
+            {isStoreOpen ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] border border-emerald-500/40 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Open Now
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/25 text-rose-300 font-extrabold text-[10px] border border-rose-500/50 shrink-0 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                🔴 Temporarily Closed (Stock Audit / Off-Hours)
+              </span>
+            )}
             <span className="truncate flex items-center gap-1 font-semibold">
               <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>📍 Dwaraka Nagar, Vizag Hub</span>

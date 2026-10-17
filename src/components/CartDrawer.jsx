@@ -12,7 +12,8 @@ export default function CartDrawer() {
     removeFromCart,
     cartSubtotal,
     setIsCheckoutOpen,
-    storeInfo
+    storeInfo,
+    isStoreOpen
   } = useStore();
 
   const availableSlots = React.useMemo(() => getAvailablePickupSlots(), [isCartOpen]);
@@ -47,6 +48,10 @@ export default function CartDrawer() {
   };
 
   const handleProceedToCheckout = () => {
+    if (!isStoreOpen) {
+      alert('Store is temporarily closed for counter pickups. Please check back soon.');
+      return;
+    }
     try {
       sessionStorage.setItem('vijayahub_selected_pickup_slot', selectedSlot);
     } catch {
@@ -329,14 +334,24 @@ export default function CartDrawer() {
               </div>
 
               {/* Checkout Action Button */}
-              <button
-                type="button"
-                onClick={handleProceedToCheckout}
-                className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-all uppercase tracking-wider active:scale-[0.99]"
-              >
-                <span>Proceed to Checkout</span>
-                <ArrowRight className="w-4 h-4 stroke-[3]" />
-              </button>
+              {isStoreOpen ? (
+                <button
+                  type="button"
+                  onClick={handleProceedToCheckout}
+                  className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-all uppercase tracking-wider active:scale-[0.99] cursor-pointer"
+                >
+                  <span>Proceed to Checkout</span>
+                  <ArrowRight className="w-4 h-4 stroke-[3]" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-3.5 px-4 bg-slate-200 text-slate-500 rounded-xl font-black text-sm flex items-center justify-center gap-2 cursor-not-allowed uppercase tracking-wider border border-slate-300"
+                >
+                  <span>Store Closed - Reopening Soon</span>
+                </button>
+              )}
 
               {/* 24-Hour Reservation Guarantee Note */}
               <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 pt-1">

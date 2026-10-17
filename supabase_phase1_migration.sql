@@ -281,3 +281,21 @@ GRANT EXECUTE ON FUNCTION decrement_inventory_atomic(UUID, INT) TO anon, authent
 GRANT EXECUTE ON FUNCTION increment_inventory_atomic(TEXT, INT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION increment_inventory_atomic(UUID, INT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION decrement_order_inventory_atomic(JSONB) TO anon, authenticated, service_role;
+
+-- ==============================================================================
+-- 5. STORE SETTINGS TABLE (MASTER STORE STATUS TOGGLE)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.store_settings (
+  id TEXT PRIMARY KEY,
+  is_open BOOLEAN DEFAULT true,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "store_settings_select_policy" ON public.store_settings FOR SELECT USING (true);
+CREATE POLICY "store_settings_upsert_policy" ON public.store_settings FOR ALL USING (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.store_settings;
+
+INSERT INTO public.store_settings (id, is_open) VALUES ('store_status', true)
+ON CONFLICT (id) DO NOTHING;
+

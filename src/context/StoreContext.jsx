@@ -102,6 +102,39 @@ export function StoreProvider({ children }) {
     safeSetStorage('vijayahub_feedbacks_v1', feedbacks);
   }, [feedbacks]);
 
+  // Master Store Open / Closed Status (persisted locally & cloud)
+  const [isStoreOpen, setIsStoreOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vijayahub_store_open_v1');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch (e) {
+      return true;
+    }
+  });
+
+  const updateStoreOpen = async (isOpen) => {
+    setIsStoreOpen(isOpen);
+    safeSetStorage('vijayahub_store_open_v1', isOpen);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('store_settings').upsert([
+          {
+            id: 'store_status',
+            is_open: isOpen,
+            updated_at: new Date().toISOString()
+          }
+        ]);
+      } catch (err) {
+        console.warn('Supabase store_settings update note:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    safeSetStorage('vijayahub_store_open_v1', isStoreOpen);
+  }, [isStoreOpen]);
+
   // 7. UI Modals and Navigation states
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -230,15 +263,21 @@ export function StoreProvider({ children }) {
     // 1. Initial fetch of products and orders from Supabase (Concurrent Parallel Fetch)
     const fetchCloudData = async () => {
       try {
-        const [productsRes, ordersRes, feedbacksRes] = await Promise.all([
+        const [productsRes, ordersRes, feedbacksRes, settingsRes] = await Promise.allSettled([
           supabase.from('products').select('*').order('created_at', { ascending: false }),
           supabase.from('orders').select('*').order('created_at', { ascending: false }),
-          supabase.from('feedbacks').select('*').order('created_at', { ascending: false })
+          supabase.from('feedbacks').select('*').order('created_at', { ascending: false }),
+          supabase.from('store_settings').select('*').eq('id', 'store_status').single()
         ]);
 
-        const cloudProducts = productsRes.data;
-        const cloudOrders = ordersRes.data;
-        const cloudFeedbacks = feedbacksRes.data;
+        const cloudProducts = productsRes.status === 'fulfilled' ? productsRes.value?.data : null;
+        const cloudOrders = ordersRes.status === 'fulfilled' ? ordersRes.value?.data : null;
+        const cloudFeedbacks = feedbacksRes.status === 'fulfilled' ? feedbacksRes.value?.data : null;
+        const cloudSettings = settingsRes.status === 'fulfilled' ? settingsRes.value?.data : null;
+
+        if (cloudSettings && typeof cloudSettings.is_open === 'boolean') {
+          setIsStoreOpen(cloudSettings.is_open);
+        }
 
         if (cloudProducts && cloudProducts.length > 0) {
           // Normalize snake_case columns if present
@@ -387,9 +426,23 @@ export function StoreProvider({ children }) {
       )
       .subscribe();
 
+    const settingsChannel = supabase
+      .channel('realtime:store_settings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'store_settings' },
+        (payload) => {
+          if (payload.new && typeof payload.new.is_open === 'boolean') {
+            setIsStoreOpen(payload.new.is_open);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(productsChannel);
+      supabase.removeChannel(settingsChannel);
     };
   }, []);
 
@@ -1145,6 +1198,10 @@ export function StoreProvider({ children }) {
         isCloudLoaded,
         newOrderAlert,
         setNewOrderAlert,
+        // Master Store Status
+        isStoreOpen,
+        setIsStoreOpen: updateStoreOpen,
+        updateStoreOpen,
         // Action methods
         addToCart,
         removeFromCart,
