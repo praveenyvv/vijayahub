@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Plus, Minus } from 'lucide-react';
+import { Flame, Plus, Minus, Star } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 /**
@@ -137,15 +137,21 @@ export default function TrendingPicksRow() {
                     {product.title}
                   </h3>
 
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-sm sm:text-base font-black text-gray-900">
-                      ₹{price.toLocaleString('en-IN')}
-                    </span>
-                    {mrp > price && (
-                      <span className="text-[10px] text-gray-400 line-through font-medium">
-                        ₹{mrp.toLocaleString('en-IN')}
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm sm:text-base font-black text-gray-900">
+                        ₹{price.toLocaleString('en-IN')}
                       </span>
-                    )}
+                      {mrp > price && (
+                        <span className="text-[10px] text-gray-400 line-through font-medium">
+                          ₹{mrp.toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-0.5 text-[10px] font-bold text-slate-700">
+                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                      <span>{product.rating ? Number(product.rating).toFixed(1) : '4.8'}</span>
+                    </div>
                   </div>
                 </div>
 

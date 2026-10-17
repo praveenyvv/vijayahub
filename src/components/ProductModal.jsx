@@ -10,12 +10,20 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Images
+  Images,
+  Bell
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function ProductModal() {
-  const { selectedProduct, setSelectedProduct, addToCart, setIsCartOpen } = useStore();
+  const {
+    selectedProduct,
+    setSelectedProduct,
+    addToCart,
+    setIsCartOpen,
+    setNotifyMeProduct,
+    setReviewModalData
+  } = useStore();
   const [qty, setQty] = useState(1);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
@@ -188,15 +196,29 @@ export default function ProductModal() {
           <div className="p-6 sm:p-8 flex flex-col justify-between max-h-[85vh] overflow-y-auto">
             <div>
               {/* Category & Rating */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full">
-                  {selectedProduct.category}
-                </span>
-                <div className="flex items-center gap-1 text-slate-700 text-xs font-bold">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span>{selectedProduct.rating || 4.8}</span>
-                  <span className="text-slate-400">({selectedProduct.reviewsCount || 30} reviews)</span>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full">
+                    {selectedProduct.category}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setReviewModalData({ product: selectedProduct })}
+                    className="flex items-center gap-1 text-slate-700 hover:text-amber-600 text-xs font-bold transition-colors cursor-pointer"
+                    title="Write a Review"
+                  >
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span>{selectedProduct.rating ? Number(selectedProduct.rating).toFixed(1) : '4.8'}</span>
+                    <span className="text-slate-400">({selectedProduct.reviewsCount || 24} reviews)</span>
+                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setReviewModalData({ product: selectedProduct })}
+                  className="text-[11px] font-bold text-amber-600 hover:text-amber-700 underline cursor-pointer"
+                >
+                  Write a Review
+                </button>
               </div>
 
               {/* Title */}
@@ -388,24 +410,35 @@ export default function ProductModal() {
               </div>
 
               <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    addToCart(selectedProduct, qty, selectedVariant);
-                    setSelectedProduct(null);
-                  }}
-                  disabled={isOutOfStock}
-                  className="flex-1 py-3 px-4 rounded-xl border border-amber-600 text-amber-700 hover:bg-amber-50 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                >
-                  <ShoppingBag className="w-4 h-4" /> Add to Cart
-                </button>
+                {isOutOfStock ? (
+                  <button
+                    onClick={() => {
+                      setNotifyMeProduct(selectedProduct);
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                  >
+                    <Bell className="w-4 h-4 text-amber-400" /> Notify Me When In Stock
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        addToCart(selectedProduct, qty, selectedVariant);
+                        setSelectedProduct(null);
+                      }}
+                      className="flex-1 py-3 px-4 rounded-xl border border-amber-600 text-amber-700 hover:bg-amber-50 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <ShoppingBag className="w-4 h-4" /> Add to Cart
+                    </button>
 
-                <button
-                  onClick={handleAddAndOpenCart}
-                  disabled={isOutOfStock}
-                  className="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-600/30 disabled:opacity-50"
-                >
-                  Buy Now (Instant Checkout)
-                </button>
+                    <button
+                      onClick={handleAddAndOpenCart}
+                      className="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-600/30 cursor-pointer"
+                    >
+                      Buy Now (Instant Checkout)
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

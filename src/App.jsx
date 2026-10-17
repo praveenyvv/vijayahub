@@ -16,6 +16,8 @@ import AdminDashboard from './components/AdminDashboard';
 import PolicyModal from './components/PolicyModal';
 import UserAccountModal from './components/UserAccountModal';
 import FeedbackSupportModal from './components/FeedbackSupportModal';
+import NotifyMeModal from './components/NotifyMeModal';
+import ProductReviewModal from './components/ProductReviewModal';
 import Footer from './components/Footer';
 import { useAndroidBackButton } from './hooks/useAndroidBackButton';
 import { Sparkles, Store, Clock, ShieldCheck, CheckCircle2, MessageSquare, ArrowRight, X, ShoppingBag } from 'lucide-react';
@@ -29,6 +31,10 @@ function StorefrontContent() {
     isAuthModalOpen,
     selectedProduct,
     setSelectedProduct,
+    notifyMeProduct,
+    setNotifyMeProduct,
+    reviewModalData,
+    setReviewModalData,
     isCheckoutOpen,
     setIsCheckoutOpen,
     completedOrder,
@@ -72,6 +78,10 @@ function StorefrontContent() {
     closeCheckout: () => setIsCheckoutOpen(false),
     selectedProduct,
     closeProduct: () => setSelectedProduct(null),
+    notifyMeProduct,
+    closeNotifyMe: () => setNotifyMeProduct(null),
+    reviewModalData,
+    closeReviewModal: () => setReviewModalData(null),
     isCartOpen,
     closeCart: () => setIsCartOpen(false),
     searchQuery,
@@ -319,6 +329,8 @@ function StorefrontContent() {
 
       {/* Global Interactive Modals */}
       <ProductModal />
+      <NotifyMeModal />
+      <ProductReviewModal />
       <CartDrawer />
       <CheckoutModal />
       <OrderSuccessModal />

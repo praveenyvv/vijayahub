@@ -134,12 +134,10 @@ export default function CategoryPageView({ onBackToHome }) {
     }
   };
 
-  // Filter in-stock only products matching this category and in-category search query
+  // Filter products matching this category and in-category search query
+  // Sorting: In-stock items first, Out-of-Stock items placed at the very end
   const categoryProducts = React.useMemo(() => {
-    return products.filter((p) => {
-      const stockCount = Number(p.stock ?? p.inventory ?? 0);
-      if (stockCount <= 0) return false;
-
+    const list = products.filter((p) => {
       const matchCat = matchProductCategory(p, selectedCategory);
       if (!matchCat) return false;
       if (!inCategorySearch.trim()) return true;
@@ -150,6 +148,14 @@ export default function CategoryPageView({ onBackToHome }) {
         (p.category && p.category.toLowerCase().includes(q)) ||
         (p.description && p.description.toLowerCase().includes(q))
       );
+    });
+
+    return list.sort((a, b) => {
+      const stockA = Number(a.stock ?? a.inventory ?? 0);
+      const stockB = Number(b.stock ?? b.inventory ?? 0);
+      if (stockA > 0 && stockB <= 0) return -1;
+      if (stockA <= 0 && stockB > 0) return 1;
+      return 0;
     });
   }, [products, selectedCategory, inCategorySearch]);
 

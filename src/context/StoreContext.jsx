@@ -156,6 +156,8 @@ export function StoreProvider({ children }) {
   const [isCloudConnected, setIsCloudConnected] = useState(isSupabaseConfigured);
   const [isCloudLoaded, setIsCloudLoaded] = useState(!isSupabaseConfigured);
   const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [notifyMeProduct, setNotifyMeProduct] = useState(null);
+  const [reviewModalData, setReviewModalData] = useState(null);
 
   // Sync categories to localStorage
   useEffect(() => {
@@ -1182,6 +1184,76 @@ export function StoreProvider({ children }) {
     return true;
   };
 
+  const requestStockNotification = async ({ productId, productTitle, contact, name = '' }) => {
+    const newId = `notif-${Date.now()}`;
+    const payload = {
+      id: newId,
+      product_id: productId,
+      product_title: productTitle,
+      customer_contact: contact,
+      contact_type: contact.includes('@') ? 'email' : 'phone',
+      customer_name: name,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('stock_notifications').insert([payload]);
+      } catch (err) {
+        console.warn('Supabase stock_notifications insert note:', err);
+      }
+    }
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('vijayahub_stock_notifications_v1') || '[]');
+      stored.push(payload);
+      localStorage.setItem('vijayahub_stock_notifications_v1', JSON.stringify(stored));
+    } catch {
+      // ignore
+    }
+
+    return true;
+  };
+
+  const submitProductReview = async ({ productId, rating, reviewText, reviewerName, reviewerPhone, orderId = null }) => {
+    const prod = products.find((p) => p.id === productId);
+    const currentCount = Number(prod?.reviewsCount ?? prod?.reviews_count ?? 24);
+    const currentRating = Number(prod?.rating || 4.8);
+    const newCount = currentCount + 1;
+    const newRating = Number(((currentRating * currentCount + Number(rating)) / newCount).toFixed(1));
+
+    // Update local products state
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, rating: newRating, reviewsCount: newCount } : p))
+    );
+
+    // Save review to feedbacks
+    const reviewPayload = {
+      id: `rev-${Date.now()}`,
+      customer_name: reviewerName || 'Verified Buyer',
+      customer_phone: reviewerPhone || '9848012345',
+      type: 'review',
+      rating: Number(rating),
+      message: `[Product: ${prod?.title || productId}] ${reviewText}`,
+      order_id: orderId,
+      created_at: new Date().toISOString()
+    };
+
+    setFeedbacks((prev) => [reviewPayload, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('feedbacks').insert([reviewPayload]);
+        await supabase.from('products').update({ rating: newRating, reviews_count: newCount }).eq('id', productId);
+      } catch (err) {
+        console.warn('Supabase review insert note:', err);
+      }
+    }
+
+    return true;
+  };
+
   // Cart calculations
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -1202,6 +1274,10 @@ export function StoreProvider({ children }) {
         setIsCartOpen,
         selectedProduct,
         setSelectedProduct,
+        notifyMeProduct,
+        setNotifyMeProduct,
+        reviewModalData,
+        setReviewModalData,
         isCheckoutOpen,
         setIsCheckoutOpen,
         currentUser,
@@ -1248,7 +1324,9 @@ export function StoreProvider({ children }) {
         updateProduct,
         deleteProduct,
         resetToDemoData,
-        resetTestOrdersAndClearAnalytics
+        resetTestOrdersAndClearAnalytics,
+        requestStockNotification,
+        submitProductReview
       }}
     >
       {children}

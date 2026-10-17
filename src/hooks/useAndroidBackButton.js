@@ -24,6 +24,10 @@ export function useAndroidBackButton({
   closeCheckout,
   selectedProduct,
   closeProduct,
+  notifyMeProduct,
+  closeNotifyMe,
+  reviewModalData,
+  closeReviewModal,
   isCartOpen,
   closeCart,
   searchQuery,
@@ -47,6 +51,8 @@ export function useAndroidBackButton({
     isAuthModalOpen,
     isCheckoutOpen,
     selectedProduct,
+    notifyMeProduct,
+    reviewModalData,
     isCartOpen,
     searchQuery,
     selectedCategory,
@@ -63,6 +69,8 @@ export function useAndroidBackButton({
       isAuthModalOpen,
       isCheckoutOpen,
       selectedProduct,
+      notifyMeProduct,
+      reviewModalData,
       isCartOpen,
       searchQuery,
       selectedCategory,
@@ -77,6 +85,8 @@ export function useAndroidBackButton({
     isAuthModalOpen,
     isCheckoutOpen,
     selectedProduct,
+    notifyMeProduct,
+    reviewModalData,
     isCartOpen,
     searchQuery,
     selectedCategory,
@@ -116,25 +126,37 @@ export function useAndroidBackButton({
         return;
       }
 
-      // 5. Close Feedback Modal if open
+      // 5. Close Review Modal if open
+      if (state.reviewModalData && closeReviewModal) {
+        closeReviewModal();
+        return;
+      }
+
+      // 6. Close Notify Me Modal if open
+      if (state.notifyMeProduct && closeNotifyMe) {
+        closeNotifyMe();
+        return;
+      }
+
+      // 7. Close Feedback Modal if open
       if (state.isFeedbackModalOpen && closeFeedback) {
         closeFeedback();
         return;
       }
 
-      // 6. Close User Account / Orders Modal if open
+      // 8. Close User Account / Orders Modal if open
       if (state.isAuthModalOpen && closeAuth) {
         closeAuth();
         return;
       }
 
-      // 7. Close Checkout Modal if open
+      // 9. Close Checkout Modal if open
       if (state.isCheckoutOpen && closeCheckout) {
         closeCheckout();
         return;
       }
 
-      // 8. Close Product Details Modal if open
+      // 10. Close Product Details Modal if open
       if (state.selectedProduct && closeProduct) {
         closeProduct();
         return;

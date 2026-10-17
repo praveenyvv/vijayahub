@@ -299,3 +299,22 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.store_settings;
 INSERT INTO public.store_settings (id, is_open) VALUES ('store_status', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- ==============================================================================
+-- 6. STOCK NOTIFICATIONS TABLE (OUT-OF-STOCK "NOTIFY ME" FLOW)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.stock_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id TEXT NOT NULL,
+  product_title TEXT NOT NULL,
+  contact TEXT NOT NULL,
+  customer_name TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.stock_notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "stock_notifications_insert_policy" ON public.stock_notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "stock_notifications_select_policy" ON public.stock_notifications FOR SELECT USING (true);
+CREATE POLICY "stock_notifications_update_policy" ON public.stock_notifications FOR UPDATE USING (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_notifications;
+

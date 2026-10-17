@@ -18,7 +18,8 @@ import {
   KeyRound,
   RefreshCw,
   ShieldCheck,
-  ArrowLeft
+  ArrowLeft,
+  Star
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser } from '../services/authService';
@@ -31,6 +32,7 @@ export default function UserAccountModal() {
     setIsAuthModalOpen,
     orders,
     setInvoiceOrder,
+    setReviewModalData,
     storeInfo
   } = useStore();
 
@@ -546,16 +548,27 @@ export default function UserAccountModal() {
                       {/* Items Breakdown */}
                       <div className="space-y-1.5 text-xs text-slate-700 pt-1">
                         {order.items?.map((it, idx) => (
-                          <div key={idx} className="flex justify-between items-center">
-                            <span className="font-medium line-clamp-1">
-                              {it.quantity}x {it.title}
-                              {it.selectedWeight && (
-                                <span className="ml-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1 rounded">
-                                  {it.selectedWeight}
-                                </span>
-                              )}
-                            </span>
-                            <span className="font-bold font-mono text-slate-900">
+                          <div key={idx} className="flex justify-between items-center py-0.5">
+                            <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                              <span className="font-medium truncate">
+                                {it.quantity}x {it.title}
+                                {it.selectedWeight && (
+                                  <span className="ml-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1 rounded">
+                                    {it.selectedWeight}
+                                  </span>
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setReviewModalData({ product: it, orderId: order.id })}
+                                className="text-[10px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0 transition cursor-pointer"
+                                title="Rate this product"
+                              >
+                                <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                                <span>Rate</span>
+                              </button>
+                            </div>
+                            <span className="font-bold font-mono text-slate-900 shrink-0">
                               ₹{(it.price * it.quantity).toLocaleString('en-IN')}
                             </span>
                           </div>

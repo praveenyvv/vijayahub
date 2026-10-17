@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Star, Eye, ShieldCheck, Plus, Minus, Tag } from 'lucide-react';
+import { ShoppingBag, Star, Eye, ShieldCheck, Plus, Minus, Tag, Bell } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 /**
@@ -9,7 +9,14 @@ import { useStore } from '../context/StoreContext';
  * - Compact badges, pack selector, wholesale pricing, and orange ADD button
  */
 export default function ProductCard({ product }) {
-  const { addToCart, updateCartQuantity, setSelectedProduct, cart } = useStore();
+  const {
+    addToCart,
+    updateCartQuantity,
+    setSelectedProduct,
+    setNotifyMeProduct,
+    setReviewModalData,
+    cart
+  } = useStore();
 
   // Selected weight variant (defaults to isDefault variant or first variant)
   const defaultVar =
@@ -32,8 +39,15 @@ export default function ProductCard({ product }) {
   const cartKey = selectedVariant ? `${product.id}-${selectedVariant.weight}` : product.id;
   const itemInCart = cart.find((item) => (item.cartItemId || item.id) === cartKey);
 
+  const reviewCount = product.reviewsCount ?? product.reviewCount ?? 24;
+  const ratingScore = product.rating ? Number(product.rating).toFixed(1) : '4.8';
+
   return (
-    <div className="group bg-white rounded-xl border border-gray-200 hover:border-amber-400 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden relative">
+    <div
+      className={`group bg-white rounded-xl border border-gray-200 hover:border-amber-400 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden relative ${
+        isOutOfStock ? 'bg-gray-50/70 border-dashed' : ''
+      }`}
+    >
       {/* ============================================================== */}
       {/* 1. Constrained Mobile Image Container (h-28 sm:h-36 md:h-40)   */}
       {/* ============================================================== */}
@@ -45,15 +59,30 @@ export default function ProductCard({ product }) {
           src={product.images?.[0] || product.image}
           alt={product.title}
           loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
+            isOutOfStock ? 'grayscale opacity-75' : ''
+          }`}
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80';
           }}
         />
 
+        {/* Semi-transparent Out-of-Stock Overlay & Badge */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-slate-900/35 backdrop-grayscale flex items-center justify-center p-2 z-10 pointer-events-none">
+            <span className="bg-slate-900/90 text-white text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow border border-slate-700">
+              Out of Stock
+            </span>
+          </div>
+        )}
+
         {/* Top Badges Area */}
-        <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 items-start">
-          {product.badge ? (
+        <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 items-start z-10">
+          {isOutOfStock ? (
+            <span className="bg-slate-700 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded shadow-2xs uppercase tracking-wider">
+              Stock Awaited
+            </span>
+          ) : product.badge ? (
             <span className="bg-amber-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded shadow-2xs uppercase tracking-wider">
               {product.badge}
             </span>
@@ -72,8 +101,8 @@ export default function ProductCard({ product }) {
         </div>
 
         {/* Top Right: Savings / Discount Pill */}
-        {discountPercent > 0 && (
-          <span className="absolute top-1.5 right-1.5 bg-emerald-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded shadow-2xs">
+        {discountPercent > 0 && !isOutOfStock && (
+          <span className="absolute top-1.5 right-1.5 bg-emerald-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded shadow-2xs z-10">
             {discountPercent}% OFF
           </span>
         )}
@@ -85,7 +114,7 @@ export default function ProductCard({ product }) {
             e.stopPropagation();
             setSelectedProduct(product);
           }}
-          className="hidden sm:flex absolute inset-x-2 bottom-1.5 bg-white/95 backdrop-blur-xs text-slate-800 text-[10px] font-bold py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-1 shadow-md hover:bg-white"
+          className="hidden sm:flex absolute inset-x-2 bottom-1.5 bg-white/95 backdrop-blur-xs text-slate-800 text-[10px] font-bold py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-1 shadow-md hover:bg-white z-10"
         >
           <Eye className="w-3 h-3 text-amber-600" />
           Quick View
@@ -97,15 +126,24 @@ export default function ProductCard({ product }) {
       {/* ============================================================== */}
       <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
         <div>
-          {/* Category & Rating */}
-          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-            <span className="font-bold text-[#154d28] bg-emerald-50 px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] truncate max-w-[90px]">
+          {/* Category & Interactive Star Rating Display */}
+          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1 gap-1">
+            <span className="font-bold text-[#154d28] bg-emerald-50 px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] truncate max-w-[85px]">
               {product.category}
             </span>
-            <div className="flex items-center gap-0.5 text-slate-700 font-bold text-[10px]">
-              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-              <span>{product.rating || 4.8}</span>
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setReviewModalData({ product });
+              }}
+              className="flex items-center gap-0.5 text-slate-700 hover:text-amber-600 font-bold text-[9px] sm:text-[10px] transition-colors cursor-pointer"
+              title="Click to view or add rating"
+            >
+              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
+              <span className="font-extrabold text-gray-900">{ratingScore}</span>
+              <span className="text-gray-400 font-medium">({reviewCount})</span>
+            </button>
           </div>
 
           {/* Product Title */}
@@ -178,14 +216,18 @@ export default function ProductCard({ product }) {
             )}
           </div>
 
-          {/* Interactive ADD / Quantity Controller */}
+          {/* Interactive ADD / Quantity Controller or Notify Me */}
           {isOutOfStock ? (
             <button
               type="button"
-              disabled
-              className="w-full py-1.5 px-2 rounded-lg font-bold text-[10px] sm:text-xs bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed text-center uppercase tracking-wider"
+              onClick={(e) => {
+                e.stopPropagation();
+                setNotifyMeProduct(product);
+              }}
+              className="w-full py-1.5 sm:py-2 px-2.5 rounded-lg font-bold text-xs sm:text-sm bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white flex items-center justify-center gap-1.5 shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer"
             >
-              Out of Stock
+              <Bell className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <span>Notify Me</span>
             </button>
           ) : itemInCart ? (
             /* Active Stepper (-  quantity  +) */

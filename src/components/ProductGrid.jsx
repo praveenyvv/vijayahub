@@ -65,11 +65,7 @@ export default function ProductGrid() {
   } = useStore();
 
   const filteredProducts = React.useMemo(() => {
-    return products.filter((p) => {
-      // In-stock only filter: hide out-of-stock products
-      const stockCount = Number(p.stock ?? p.inventory ?? 0);
-      if (stockCount <= 0) return false;
-
+    const list = products.filter((p) => {
       const matchesCategory = matchProductCategory(p, selectedCategory);
       const matchesSearch =
         !searchQuery ||
@@ -77,6 +73,15 @@ export default function ProductGrid() {
         p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesCategory && matchesSearch;
+    });
+
+    // Smart Catalog Sorting: In-stock items first, Out-of-Stock items placed at the very end
+    return list.sort((a, b) => {
+      const stockA = Number(a.stock ?? a.inventory ?? 0);
+      const stockB = Number(b.stock ?? b.inventory ?? 0);
+      if (stockA > 0 && stockB <= 0) return -1;
+      if (stockA <= 0 && stockB > 0) return 1;
+      return 0;
     });
   }, [products, selectedCategory, searchQuery]);
 
