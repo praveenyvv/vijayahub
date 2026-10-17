@@ -1150,6 +1150,38 @@ export function StoreProvider({ children }) {
     }
   };
 
+  const resetTestOrdersAndClearAnalytics = async () => {
+    // 1. Purge orders and carts in local state
+    setOrders([]);
+    setCart([]);
+    safeSetStorage(ORDERS_STORAGE_KEY, []);
+    safeSetStorage(CART_STORAGE_KEY, []);
+
+    // 2. Restore products stock back to initial inventory
+    setProducts((prev) =>
+      prev.map((p) => {
+        const initialMatch = INITIAL_PRODUCTS.find((init) => init.id === p.id);
+        return {
+          ...p,
+          stock: initialMatch ? initialMatch.stock : (p.stock < 10 ? 15 : p.stock)
+        };
+      })
+    );
+
+    // 3. Clear orders and restore stock in Supabase Cloud
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('orders').delete().neq('id', 'keep_none_placeholder');
+        for (const initProd of INITIAL_PRODUCTS) {
+          await supabase.from('products').update({ stock: initProd.stock }).eq('id', initProd.id);
+        }
+      } catch (err) {
+        console.warn('Supabase test orders reset warning:', err);
+      }
+    }
+    return true;
+  };
+
   // Cart calculations
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -1215,7 +1247,8 @@ export function StoreProvider({ children }) {
         addProduct,
         updateProduct,
         deleteProduct,
-        resetToDemoData
+        resetToDemoData,
+        resetTestOrdersAndClearAnalytics
       }}
     >
       {children}

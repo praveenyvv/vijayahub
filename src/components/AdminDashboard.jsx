@@ -26,7 +26,11 @@ import {
   Sparkles,
   Clock,
   KeyRound,
-  CheckCircle2
+  CheckCircle2,
+  BarChart3,
+  Layers,
+  Calendar,
+  Award
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -72,14 +76,22 @@ export default function AdminDashboard() {
     feedbacks,
     seedDefaultCatalog,
     isStoreOpen,
-    updateStoreOpen
+    updateStoreOpen,
+    resetTestOrdersAndClearAnalytics
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'customers', 'feedbacks', 'settings'
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'products', 'customers', 'analytics', 'feedbacks', 'settings'
   const [orderFilter, setOrderFilter] = useState('All');
   const [orderDateFilter, setOrderDateFilter] = useState('All'); // 'All', 'Today', 'Tomorrow'
   const [orderSearch, setOrderSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+
+  // Analytics & Reset Test Orders States
+  const [analyticsDateRange, setAnalyticsDateRange] = useState('All Time'); // 'Today', 'This Week', 'This Month', 'All Time'
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetPasscode, setResetPasscode] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   // Dynamic Category Creation
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -438,6 +450,146 @@ export default function AdminDashboard() {
     p.category.toLowerCase().includes(productSearch.toLowerCase())
   );
 
+  // --- Sales Analytics & KPIs Engine ---
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const todayOrders = orders.filter((o) => {
+    if (o.status === 'Cancelled' || o.status === 'Expired') return false;
+    const d = new Date(o.date || o.created_at || o.createdAt);
+    return !isNaN(d.getTime()) && d >= startOfToday;
+  });
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+
+  // Analytics Filtered by Date Range
+  const filteredAnalyticsOrders = orders.filter((o) => {
+    if (o.status === 'Cancelled' || o.status === 'Expired') return false;
+    const orderDate = new Date(o.date || o.created_at || o.createdAt);
+    if (isNaN(orderDate.getTime())) return true;
+
+    if (analyticsDateRange === 'Today') {
+      return orderDate >= startOfToday;
+    }
+
+    if (analyticsDateRange === 'This Week') {
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const distanceToMonday = (dayOfWeek + 6) % 7;
+      const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - distanceToMonday);
+      return orderDate >= startOfWeek;
+    }
+
+    if (analyticsDateRange === 'This Month') {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return orderDate >= startOfMonth;
+    }
+
+    return true; // 'All Time'
+  });
+
+  const filteredAnalyticsRevenue = filteredAnalyticsOrders.reduce(
+    (sum, o) => sum + (Number(o.total) || 0),
+    0
+  );
+  const filteredAnalyticsOrderCount = filteredAnalyticsOrders.length;
+  const aov =
+    filteredAnalyticsOrderCount > 0
+      ? Math.round(filteredAnalyticsRevenue / filteredAnalyticsOrderCount)
+      : 0;
+
+  // Best-Selling Products Calculation
+  const productSalesMap = {};
+  filteredAnalyticsOrders.forEach((o) => {
+    (o.items || []).forEach((item) => {
+      const pid = item.id;
+      if (!productSalesMap[pid]) {
+        const catalogProd = products.find((p) => p.id === pid);
+        productSalesMap[pid] = {
+          id: pid,
+          title: item.title || catalogProd?.title || 'Wholesale Product',
+          category: item.category || catalogProd?.category || 'General',
+          image: item.image || catalogProd?.image || IMAGE_PRESETS[0].url,
+          price: item.price || catalogProd?.price || 0,
+          quantitySold: 0,
+          totalRevenue: 0
+        };
+      }
+      const qty = item.quantity || 1;
+      productSalesMap[pid].quantitySold += qty;
+      productSalesMap[pid].totalRevenue += (item.price || 0) * qty;
+    });
+  });
+
+  const topSellingProducts = Object.values(productSalesMap)
+    .sort((a, b) => b.quantitySold - a.quantitySold)
+    .slice(0, 5);
+
+  const totalUnitsSold = Object.values(productSalesMap).reduce(
+    (sum, p) => sum + p.quantitySold,
+    0
+  );
+
+  // Sales by Category Breakdown
+  const categorySalesMap = {};
+  filteredAnalyticsOrders.forEach((o) => {
+    (o.items || []).forEach((item) => {
+      const catalogProd = products.find((p) => p.id === item.id);
+      const cat = item.category || catalogProd?.category || 'General Wholesale';
+      if (!categorySalesMap[cat]) {
+        categorySalesMap[cat] = {
+          category: cat,
+          totalRevenue: 0,
+          itemCount: 0
+        };
+      }
+      const qty = item.quantity || 1;
+      categorySalesMap[cat].itemCount += qty;
+      categorySalesMap[cat].totalRevenue += (item.price || 0) * qty;
+    });
+  });
+
+  const categorySalesList = Object.values(categorySalesMap).sort(
+    (a, b) => b.totalRevenue - a.totalRevenue
+  );
+  const totalCategoryRevenue =
+    categorySalesList.reduce((sum, c) => sum + c.totalRevenue, 0) || 1;
+
+  const getCategoryBarColor = (index) => {
+    const colors = [
+      'bg-amber-500',
+      'bg-emerald-500',
+      'bg-indigo-500',
+      'bg-rose-500',
+      'bg-cyan-500',
+      'bg-purple-500',
+      'bg-orange-500'
+    ];
+    return colors[index % colors.length];
+  };
+
+  const handleConfirmResetTestData = async (e) => {
+    e.preventDefault();
+    const cleanPin = resetPasscode.trim();
+    if (cleanPin !== '54321' && cleanPin !== 'admin' && cleanPin !== '9848054321') {
+      setResetError('Invalid Admin Passcode. Use 54321 or admin.');
+      return;
+    }
+
+    try {
+      setIsResetting(true);
+      await resetTestOrdersAndClearAnalytics();
+      setIsResetModalOpen(false);
+      setResetPasscode('');
+      setResetError('');
+      alert('🧹 Success: All test orders cleared and catalog inventory restored to full capacity!');
+    } catch (err) {
+      setResetError('Failed to reset: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/70 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -567,68 +719,90 @@ export default function AdminDashboard() {
 
         {/* Executive Metrics Overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div
+            onClick={() => {
+              setAnalyticsDateRange('Today');
+              setActiveTab('analytics');
+            }}
+            className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:border-emerald-300 transition cursor-pointer group"
+            title="Click to view full Today analytics"
+          >
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Total Sales</span>
+              <span className="text-xs font-bold uppercase tracking-wider group-hover:text-emerald-700 transition">Today's Sales</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-emerald-700">
+              ₹{todayRevenue.toLocaleString('en-IN')}
+            </p>
+            <p className="text-[11px] text-slate-500 font-semibold mt-1">
+              {todayOrders.length} order(s) placed today • Click for KPIs
+            </p>
+          </div>
+
+          <div
+            onClick={() => {
+              setAnalyticsDateRange('All Time');
+              setActiveTab('analytics');
+            }}
+            className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:border-amber-300 transition cursor-pointer group"
+            title="Click to view full sales analytics"
+          >
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider group-hover:text-amber-700 transition">Total Revenue</span>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4" />
               </div>
             </div>
             <p className="text-xl sm:text-2xl font-black text-slate-900">
               ₹{totalRevenue.toLocaleString('en-IN')}
             </p>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-1">
-              Direct to Consumer in Vizag
+            <p className="text-[11px] text-amber-700 font-semibold mt-1">
+              AOV: ₹{totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0} • {totalOrders} total orders
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div
+            onClick={() => setActiveTab('orders')}
+            className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:border-sky-300 transition cursor-pointer"
+          >
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Total Orders</span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
                 <ShoppingBag className="w-4 h-4" />
               </div>
             </div>
             <p className="text-xl sm:text-2xl font-black text-slate-900">{totalOrders}</p>
             <p className="text-[11px] text-slate-500 font-semibold mt-1">
-              Pickup + 20 KM Delivery
+              {orders.filter((o) => o.status === 'Completed').length} Picked Up • {orders.filter((o) => o.status === 'Placed' || o.status === 'Packed' || o.status === 'Ready for Pickup').length} Active
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div
+            onClick={() => setActiveTab('products')}
+            className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:border-rose-300 transition cursor-pointer"
+          >
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Active Products</span>
-              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                <Package className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900">{products.length}</p>
-            <p className="text-[11px] text-slate-500 font-semibold mt-1">
-              In stock catalog
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Low Stock</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Catalog Health</span>
               <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
                 <AlertTriangle className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-xl sm:text-2xl font-black text-rose-600">
-              {lowStockProducts.length}
+            <p className="text-xl sm:text-2xl font-black text-slate-900">
+              {products.length} <span className="text-sm font-bold text-slate-400">Items</span>
             </p>
             <p className="text-[11px] text-rose-700 font-semibold mt-1">
-              Items with &le; 5 units left
+              {lowStockProducts.length} Low Stock (&le; 5 units left)
             </p>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-white rounded-2xl px-3 pt-2 shadow-xs">
+        <div className="flex border-b border-slate-200 bg-white rounded-2xl px-3 pt-2 shadow-xs overflow-x-auto">
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
               activeTab === 'orders'
                 ? 'border-amber-600 text-amber-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -639,8 +813,20 @@ export default function AdminDashboard() {
           </button>
 
           <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+              activeTab === 'analytics'
+                ? 'border-amber-600 text-amber-700'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Sales Analytics & KPIs</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('products')}
-            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
               activeTab === 'products'
                 ? 'border-amber-600 text-amber-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -652,7 +838,7 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab('customers')}
-            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
               activeTab === 'customers'
                 ? 'border-amber-600 text-amber-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -664,7 +850,7 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab('feedbacks')}
-            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
               activeTab === 'feedbacks'
                 ? 'border-amber-600 text-amber-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -676,7 +862,7 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
               activeTab === 'settings'
                 ? 'border-amber-600 text-amber-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -1305,6 +1491,265 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* TAB: SALES ANALYTICS & KPIS */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            {/* Analytics Header & Date Range Filter Toolbar */}
+            <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-bold">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                    Wholesale Sales Analytics & KPIs
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Live revenue breakdowns, Average Order Value (AOV), best sellers, and category volume in Vizag.
+                </p>
+              </div>
+
+              {/* Date Range Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 self-start sm:self-auto">
+                <Calendar className="w-4 h-4 text-slate-400 ml-1.5 mr-0.5" />
+                {['Today', 'This Week', 'This Month', 'All Time'].map((range) => (
+                  <button
+                    key={range}
+                    type="button"
+                    onClick={() => setAnalyticsDateRange(range)}
+                    className={`px-3 py-1.5 text-xs font-extrabold rounded-xl transition-all cursor-pointer ${
+                      analyticsDateRange === range
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Detailed KPIs Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. Today's Revenue */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Today's Revenue
+                  </span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    Live Today
+                  </span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-700">
+                  ₹{todayRevenue.toLocaleString('en-IN')}
+                </p>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-semibold mt-2">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{todayOrders.length} order(s) booked today</span>
+                </div>
+              </div>
+
+              {/* 2. Period Revenue */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    {analyticsDateRange} Revenue
+                  </span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    {analyticsDateRange}
+                  </span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-slate-900">
+                  ₹{filteredAnalyticsRevenue.toLocaleString('en-IN')}
+                </p>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-semibold mt-2">
+                  <ShoppingBag className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{filteredAnalyticsOrderCount} total orders executed</span>
+                </div>
+              </div>
+
+              {/* 3. Average Order Value (AOV) */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Average Order Value (AOV)
+                  </span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    Revenue / Orders
+                  </span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-blue-700">
+                  ₹{aov.toLocaleString('en-IN')}
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium mt-2">
+                  Avg spend per customer checkout
+                </p>
+              </div>
+
+              {/* 4. Units Sold */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Total Units Sold
+                  </span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                    Wholesale Packs
+                  </span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-purple-700">
+                  {totalUnitsSold} <span className="text-base font-bold text-slate-500">units</span>
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium mt-2">
+                  Across {Object.keys(productSalesMap).length} catalog products
+                </p>
+              </div>
+            </div>
+
+            {/* Two-Column Deep-Dive Breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Top 5 Best-Selling Products */}
+              <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200/80 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-5 h-5 text-amber-500" />
+                    <h4 className="font-extrabold text-base text-slate-900">
+                      Top 5 Best-Selling Products
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    Ranked by Units Sold
+                  </span>
+                </div>
+
+                {topSellingProducts.length === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <Package className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="font-bold text-slate-600 text-sm">No sales in this date window</p>
+                    <p className="text-xs text-slate-400">
+                      Orders placed with status Placed/Packed/Completed will automatically rank here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {topSellingProducts.map((prod, idx) => (
+                      <div
+                        key={prod.id}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-slate-100/80 transition border border-slate-200/60"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Rank Badge */}
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                              idx === 0
+                                ? 'bg-amber-500 text-white shadow-xs'
+                                : idx === 1
+                                ? 'bg-slate-300 text-slate-800'
+                                : idx === 2
+                                ? 'bg-amber-700 text-white'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            #{idx + 1}
+                          </div>
+
+                          <img
+                            src={prod.image}
+                            alt={prod.title}
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                          />
+
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-xs text-slate-900 truncate">
+                              {prod.title}
+                            </p>
+                            <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 mt-0.5">
+                              {prod.category}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0 ml-3">
+                          <p className="font-black text-xs text-slate-900">
+                            {prod.quantitySold} units
+                          </p>
+                          <p className="text-[11px] font-bold text-emerald-700">
+                            ₹{prod.totalRevenue.toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sales by Category Breakdown */}
+              <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200/80 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-500" />
+                    <h4 className="font-extrabold text-base text-slate-900">
+                      Sales by Category Breakdown
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    Revenue Share (%)
+                  </span>
+                </div>
+
+                {categorySalesList.length === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <Layers className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="font-bold text-slate-600 text-sm">No sales in this date window</p>
+                    <p className="text-xs text-slate-400">
+                      Category shares will generate once orders are placed.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {categorySalesList.map((cat, idx) => {
+                      const sharePercent = Math.round(
+                        (cat.totalRevenue / totalCategoryRevenue) * 100
+                      );
+                      return (
+                        <div key={cat.category} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-extrabold text-slate-800 flex items-center gap-2">
+                              <span>{cat.category}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                ({cat.itemCount} items)
+                              </span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900">
+                                ₹{cat.totalRevenue.toLocaleString('en-IN')}
+                              </span>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                {sharePercent}%
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Visual Progress Bar */}
+                          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200/80">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${getCategoryBarColor(
+                                idx
+                              )}`}
+                              style={{ width: `${Math.max(sharePercent, 3)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 5: STORE & CATEGORY RULES */}
         {activeTab === 'settings' && (
           <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-200 space-y-6">
@@ -1447,6 +1892,37 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* ADMIN TEST DATA RESET UTILITY */}
+              <div className="bg-rose-50/60 rounded-2xl p-5 border border-rose-200 md:col-span-2 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                        <Trash2 className="w-4 h-4" />
+                      </div>
+                      <h4 className="font-extrabold text-sm text-rose-950">
+                        Admin Test Data & Analytics Maintenance
+                      </h4>
+                    </div>
+                    <p className="text-xs text-rose-800/80 mt-1">
+                      Clear test orders placed during demonstrations, reset all sales metrics to zero, and restore catalog inventory back to full stock. This is passcode-protected.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPasscode('');
+                      setResetError('');
+                      setIsResetModalOpen(true);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer shrink-0"
+                  >
+                    <span>🧹 Reset Test Orders & Clear Analytics</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2048,6 +2524,89 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* TEST DATA RESET CONFIRMATION MODAL */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-rose-200 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-rose-600 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-white">Reset Test Data & Orders</h3>
+                  <p className="text-xs text-rose-100">Passcode confirmation required</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-rose-950 space-y-2">
+                <p className="font-extrabold text-sm text-rose-900 flex items-center gap-1.5">
+                  <span>⚠️ Warning: Irreversible Action</span>
+                </p>
+                <p className="text-rose-800 leading-relaxed text-[11px]">
+                  This will permanently clear all <strong>({orders.length}) test orders</strong> from local storage and Supabase Cloud, recalculating analytics to ₹0 and restoring inventory back to default capacity.
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirmResetTestData} className="space-y-3">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Enter Admin Passcode to Confirm:
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      autoFocus
+                      required
+                      placeholder="Enter Admin PIN (Default: 54321)"
+                      value={resetPasscode}
+                      onChange={(e) => {
+                        setResetPasscode(e.target.value);
+                        setResetError('');
+                      }}
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-mono font-bold text-xs"
+                    />
+                  </div>
+                  {resetError && (
+                    <p className="text-rose-600 font-bold mt-1 text-[11px] animate-in fade-in">
+                      {resetError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={isResetting}
+                    className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 disabled:opacity-50 text-white font-extrabold rounded-xl shadow-md transition cursor-pointer text-center"
+                  >
+                    {isResetting ? 'Resetting Test Data...' : 'Confirm & Purge Test Orders'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsResetModalOpen(false)}
+                    className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
