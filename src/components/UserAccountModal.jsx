@@ -22,7 +22,7 @@ import {
   Star
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser } from '../services/authService';
+import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser, clearRecaptchaVerifier } from '../services/authService';
 
 export default function UserAccountModal() {
   const {
@@ -55,6 +55,7 @@ export default function UserAccountModal() {
   }, [countdown]);
 
   const handleCloseModal = () => {
+    clearRecaptchaVerifier();
     setIsAuthModalOpen(false);
     setAuthStage('phone');
     setOtpCode('');
@@ -123,12 +124,14 @@ export default function UserAccountModal() {
   };
 
   const handleLogout = async () => {
+    clearRecaptchaVerifier();
     await signOutAuthUser();
     setCurrentUser(null);
     setLoginPhone('');
     setLoginName('');
     setOtpCode('');
     setAuthStage('phone');
+    setStatusMessage({ text: '', type: '' });
   };
 
   // Filter orders matching the logged in user phone, id, or email safely
@@ -222,7 +225,10 @@ export default function UserAccountModal() {
         <div className="p-5 sm:p-6 max-h-[75vh] overflow-y-auto space-y-4">
           {/* NOT LOGGED IN: REAL SECURE PHONE OTP FLOW */}
           {!currentUser ? (
-            <div className="space-y-4">
+            <div className="space-y-4 relative">
+              {/* Permanent invisible container for Firebase reCAPTCHA (never unmounted) */}
+              <div id="recaptcha-container" className="my-0 p-0 h-0 overflow-hidden"></div>
+
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
@@ -236,16 +242,27 @@ export default function UserAccountModal() {
               {/* Status Notice */}
               {statusMessage.text && (
                 <div
-                  className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                  className={`p-3.5 rounded-xl text-xs font-semibold flex items-start gap-2.5 leading-relaxed shadow-2xs ${
                     statusMessage.type === 'error'
-                      ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                      ? 'bg-rose-50 border border-rose-300 text-rose-900'
                       : statusMessage.type === 'info'
                       ? 'bg-sky-50 border border-sky-200 text-sky-800'
                       : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                   }`}
                 >
-                  <Sparkles className="w-4 h-4 shrink-0" />
-                  <span>{statusMessage.text}</span>
+                  {statusMessage.type === 'error' ? (
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    {statusMessage.type === 'error' && (
+                      <p className="font-extrabold text-[11px] uppercase tracking-wider text-rose-700 mb-0.5">
+                        SMS Verification Diagnostic:
+                      </p>
+                    )}
+                    <p className="text-[11px] leading-relaxed whitespace-pre-line">{statusMessage.text}</p>
+                  </div>
                 </div>
               )}
 
@@ -285,9 +302,6 @@ export default function UserAccountModal() {
                     />
                   </div>
 
-                  {/* Invisible Recaptcha Container for Firebase Phone Auth */}
-                  <div id="recaptcha-container"></div>
-
                   <button
                     type="submit"
                     disabled={isLoading || loginPhone.length < 10}
@@ -315,7 +329,12 @@ export default function UserAccountModal() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setAuthStage('phone')}
+                      onClick={() => {
+                        clearRecaptchaVerifier();
+                        setAuthStage('phone');
+                        setOtpCode('');
+                        setStatusMessage({ text: '', type: '' });
+                      }}
                       className="text-amber-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <ArrowLeft className="w-3 h-3" />
