@@ -58,21 +58,19 @@ export function matchProductCategory(product, selectedCategory) {
 export default function ProductGrid() {
   const {
     products,
-    selectedCategory,
-    setSelectedCategory,
     searchQuery,
     setSearchQuery
   } = useStore();
 
   const filteredProducts = React.useMemo(() => {
     const list = products.filter((p) => {
-      const matchesCategory = matchProductCategory(p, selectedCategory);
-      const matchesSearch =
-        !searchQuery ||
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCategory && matchesSearch;
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        p.title.toLowerCase().includes(q) ||
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        (p.description && p.description.toLowerCase().includes(q))
+      );
     });
 
     // Smart Catalog Sorting: In-stock items first, Out-of-Stock items placed at the very end
@@ -83,66 +81,64 @@ export default function ProductGrid() {
       if (stockA <= 0 && stockB > 0) return 1;
       return 0;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, searchQuery]);
 
-  const handleResetFilters = () => {
-    setSelectedCategory('All');
+  const handleResetSearch = () => {
     setSearchQuery('');
   };
 
-  const isFiltered = selectedCategory !== 'All' || Boolean(searchQuery);
-
   return (
-    <section id="wholesale-catalog" className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-2 pb-8">
+    <section id="wholesale-catalog" className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-3 pb-8">
       {/* ============================================================== */}
-      {/* 1. Header with Active Filter & Quick Reset                     */}
+      {/* 1. Direct Catalog Header (Zero Category Friction)              */}
       {/* ============================================================== */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 gap-2">
+      <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b border-gray-200 gap-2">
         <div>
-          <h2 className="text-sm sm:text-lg md:text-xl font-black text-gray-900 tracking-tight leading-tight">
-            {searchQuery
-              ? `Search: "${searchQuery}"`
-              : selectedCategory === 'All'
-              ? 'All Wholesale Products'
-              : selectedCategory}
-          </h2>
-          <p className="text-[11px] sm:text-xs text-gray-500 font-medium">
-            {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} available at Dwaraka Nagar hub
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm sm:text-lg md:text-xl font-black text-gray-900 tracking-tight leading-tight">
+              {searchQuery ? `Search: "${searchQuery}"` : "Today's Wholesale Catalog"}
+            </h2>
+            <span className="hidden sm:inline-flex bg-emerald-100 text-[#154d28] text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Dwaraka Nagar Hub
+            </span>
+          </div>
+          <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">
+            {filteredProducts.length} wholesale {filteredProducts.length === 1 ? 'item' : 'items'} available for direct counter pickup
           </p>
         </div>
 
-        {isFiltered && (
+        {searchQuery && (
           <button
             type="button"
-            onClick={handleResetFilters}
+            onClick={handleResetSearch}
             className="flex items-center gap-1 text-xs font-bold text-[#154d28] hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full transition-colors border border-emerald-200 cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" />
-            <span>Reset to All</span>
+            <span>Show All</span>
           </button>
         )}
       </div>
 
       {/* ============================================================== */}
-      {/* 2. Warm & Soothing Empty Category Banner                       */}
+      {/* 2. Empty Search State                                          */}
       {/* ============================================================== */}
       {filteredProducts.length === 0 ? (
         <div className="my-6 p-6 sm:p-8 bg-amber-50/70 border border-amber-200/90 rounded-2xl text-center max-w-xl mx-auto shadow-xs">
           <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3 text-2xl shadow-2xs">
-            🌾
+            🔍
           </div>
           <h3 className="text-base sm:text-lg font-black text-gray-900 mb-1.5">
-            Fresh Stock Arriving Soon! 🌾
+            No items matched "{searchQuery}"
           </h3>
           <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-5 max-w-md mx-auto">
-            We are actively curating and stocking new wholesale items for this category. Check back shortly or explore our available products below.
+            Check the spelling or explore our fresh stock of dry fruits, rice, pulses, and atta below.
           </p>
           <button
             type="button"
-            onClick={handleResetFilters}
+            onClick={handleResetSearch}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#154d28] hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-emerald-950/20 transition-all cursor-pointer"
           >
-            <span>View All Products</span>
+            <span>View All Available Products</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

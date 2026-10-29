@@ -6,7 +6,7 @@ import { getStoredUser, getStoredSession, AUTH_USER_STORAGE_KEY } from '../servi
 
 const StoreContext = createContext();
 
-const PRODUCTS_STORAGE_KEY = 'vijayahub_products_v2';
+const PRODUCTS_STORAGE_KEY = 'vijayahub_products_v3';
 const ORDERS_STORAGE_KEY = 'vijayahub_orders_v1';
 const CART_STORAGE_KEY = 'vijayahub_cart_v2';
 const USER_STORAGE_KEY = 'vijayahub_user_v1';

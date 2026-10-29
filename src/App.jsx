@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import JumbotailHeader from './components/JumbotailHeader';
-import JumbotailCategorySections from './components/JumbotailCategorySections';
 import JumbotailBottomNav from './components/JumbotailBottomNav';
 import HeroBanner from './components/HeroBanner';
 import ProductGrid from './components/ProductGrid';
-import CategoryPageView from './components/CategoryPageView';
 import ProductCard from './components/ProductCard';
 import ProductModal from './components/ProductModal';
 import CartDrawer from './components/CartDrawer';
@@ -142,32 +140,18 @@ function StorefrontContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f7f9] text-slate-800">
-      {selectedCategory !== 'All' ? (
-        /* Dedicated Category Page View Architecture */
-        <CategoryPageView
-          onBackToHome={() => {
-            setSelectedCategory('All');
-            setSearchQuery('');
-          }}
-        />
-      ) : (
-        /* Standard Home Storefront View */
-        <>
-          {/* Jumbotail Inspired Top Forest Green Header */}
-          <JumbotailHeader isDrawerOpen={isDrawerOpen} setIsDrawerOpen={setIsDrawerOpen} />
+      {/* Jumbotail Inspired Top Forest Green Header */}
+      <JumbotailHeader isDrawerOpen={isDrawerOpen} setIsDrawerOpen={setIsDrawerOpen} />
 
-          <main className="flex-1 pb-24 md:pb-12">
-            {/* Banner with Direct Hub Perks */}
-            <HeroBanner />
+      <main className="flex-1 pb-24 md:pb-12">
+        {/* Banner with Direct Hub Perks */}
+        <HeroBanner />
 
-            {/* Jumbotail Signature 2-Column Mobile / 4-Column Desktop Category Showcase */}
-            <JumbotailCategorySections />
+        {/* Direct Product Catalog Grid (8 Core Wholesale Products Front & Center - Zero Category Friction) */}
+        <ProductGrid />
 
-            {/* Product Catalog Grid with Immediate Filter & Compact 2-Column Mobile View */}
-            <ProductGrid />
-
-            {/* Why Buy Direct from VijayaHub (Trust Section) */}
-            <section className="bg-white border-y border-slate-200/80 py-10 px-4 sm:px-6 my-4">
+        {/* Why Buy Direct from VijayaHub (Trust Section) */}
+        <section className="bg-white border-y border-slate-200/80 py-10 px-4 sm:px-6 my-4">
               <div className="max-w-7xl mx-auto">
                 <div className="text-center max-w-2xl mx-auto mb-8">
                   <span className="text-xs font-bold text-[#154d28] uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
@@ -221,8 +205,6 @@ function StorefrontContent() {
               </div>
             </section>
           </main>
-        </>
-      )}
 
       <Footer onOpenPolicy={(policy) => setActivePolicy(policy)} />
 

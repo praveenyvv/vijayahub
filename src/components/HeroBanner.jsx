@@ -1,9 +1,7 @@
 import React from 'react';
-import { Truck, Store, ShieldCheck, Zap, Percent, CheckCircle2 } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
+import { Store, ShieldCheck, Zap, Percent } from 'lucide-react';
 
 export default function HeroBanner() {
-  const { selectedCategory, setSelectedCategory, products, categories } = useStore();
 
   return (
     <section className="bg-gradient-to-b from-emerald-900/10 via-emerald-800/5 to-transparent pt-3 pb-2 px-3 sm:px-6">
@@ -68,47 +66,6 @@ export default function HeroBanner() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Category Filter Pills (Dynamically Renders All Admin-Created Categories) */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1 shrink-0">
-              Category:
-            </span>
-
-            <button
-              onClick={() => setSelectedCategory('All')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 ${
-                selectedCategory === 'All'
-                  ? 'bg-[#154d28] text-white shadow-md shadow-emerald-950/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              All Items ({products.length})
-            </button>
-
-            {categories.map((cat) => {
-              const count = products.filter((p) => p.category === cat).length;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs shrink-0 ${
-                    selectedCategory === cat
-                      ? 'bg-[#154d28] text-white shadow-md shadow-emerald-950/20'
-                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  {cat} ({count})
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="text-xs text-slate-500 font-medium hidden sm:block">
-            Showing <strong className="text-slate-800">{products.length}</strong> items in Vizag inventory
           </div>
         </div>
       </div>

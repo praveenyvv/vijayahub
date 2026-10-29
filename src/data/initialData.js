@@ -1,120 +1,5 @@
 export const INITIAL_PRODUCTS = [
-  // --- KITCHEN APPLIANCES ---
-  {
-    id: 'prod-ka-1',
-    title: 'Preethi Zodiac MG-218 750W Mixer Grinder',
-    category: 'Kitchen Appliances',
-    price: 7499,
-    mrp: 9999,
-    stock: 6,
-    rating: 4.8,
-    reviewsCount: 38,
-    image: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80'
-    ],
-    description: 'Powerful 750W Vega W5 motor capable of grinding tough ingredients in 2 minutes. Includes MasterChef Food Processor jar for chopping, slicing, grating, and atta kneading.',
-    specs: {
-      power: '750 Watts Vega W5 Motor',
-      warranty: '2 Years Comprehensive + 5 Years on Motor',
-      boxContents: '1x Motor Unit, 5x Stainless Steel & Tritan Jars, MasterChef Bowl, Citrus Press, Kneader Blade, User Manual',
-      brand: 'Preethi',
-      modelNumber: 'MG-218'
-    },
-    badge: 'Best Seller in Vizag'
-  },
-  {
-    id: 'prod-ka-2',
-    title: 'Pigeon Cruise 1800W Induction Cooktop',
-    category: 'Kitchen Appliances',
-    price: 1599,
-    mrp: 3195,
-    stock: 14,
-    rating: 4.6,
-    reviewsCount: 52,
-    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=800&q=80'
-    ],
-    description: 'High-speed energy-efficient 1800W electromagnetic induction cooktop with 7 preset Indian cooking menus, LED display, and dual heat sensors.',
-    specs: {
-      power: '1800 Watts High Efficiency',
-      warranty: '1 Year Manufacturer Warranty',
-      boxContents: '1x Induction Cooktop Unit, Warranty Card, User Manual',
-      brand: 'Pigeon by Stovekraft',
-      modelNumber: 'Cruise 1800'
-    },
-    badge: '50% OFF'
-  },
-  {
-    id: 'prod-ka-3',
-    title: 'Philips Digital Air Fryer HD9252/90 (4.1L)',
-    category: 'Kitchen Appliances',
-    price: 6999,
-    mrp: 10995,
-    stock: 4,
-    rating: 4.9,
-    reviewsCount: 29,
-    image: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80'
-    ],
-    description: 'Patented Rapid Air Technology fries with up to 90% less fat. Features digital touch screen with 7 preset cooking programs and Keep Warm function.',
-    specs: {
-      power: '1400 Watts Rapid Air',
-      warranty: '2 Years Worldwide Guarantee',
-      boxContents: '1x Air Fryer Unit, 4.1L Pan & Basket, Recipe Book QR, Quick Guide',
-      brand: 'Philips',
-      modelNumber: 'HD9252/90'
-    },
-    badge: 'Healthy Choice'
-  },
-  {
-    id: 'prod-ka-4',
-    title: 'Butterfly Smart Glass 3 Burner Gas Stove',
-    category: 'Kitchen Appliances',
-    price: 2899,
-    mrp: 5495,
-    stock: 5,
-    rating: 4.7,
-    reviewsCount: 41,
-    image: 'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=800&q=80',
-    description: 'Shatter-proof toughened black glass top with heavy-duty brass burners and powder-coated pan supports for stable Indian heavy cooking.',
-    specs: {
-      power: 'High Efficiency Thermal Brass Burners',
-      warranty: '1 Year Warranty on Product, 2 Years on Glass',
-      boxContents: '1x 3-Burner Gas Stove, 3x Brass Burners, 3x Pan Supports, 4x Rubber Legs',
-      brand: 'Butterfly',
-      modelNumber: 'Smart Glass 3B'
-    },
-    badge: 'Popular'
-  },
-  {
-    id: 'prod-ka-5',
-    title: 'Prestige Iris 1.2L Stainless Steel Electric Kettle',
-    category: 'Kitchen Appliances',
-    price: 749,
-    mrp: 1295,
-    stock: 18,
-    rating: 4.5,
-    reviewsCount: 64,
-    image: 'https://images.unsplash.com/photo-1520038410233-7141be7e6f97?auto=format&fit=crop&w=800&q=80',
-    description: 'Fast boiling 1200W electric kettle with 360-degree swivel base, automatic cut-off when water boils, and single-touch lid locking.',
-    specs: {
-      power: '1200 Watts Fast Boil',
-      warranty: '1 Year Prestige Brand Warranty',
-      boxContents: '1x Electric Kettle, 1x Swivel Power Base, Instruction Manual',
-      brand: 'Prestige',
-      modelNumber: 'Iris 1.2L'
-    },
-    badge: 'Everyday Essential'
-  },
-
-  // --- FRESH DRY FRUITS (LOOSE / PACKED BY WEIGHT) ---
+  // --- 8 CORE ACTIVE PRODUCTS ---
   {
     id: 'prod-df-1',
     title: 'Premium W-240 Jumbo Cashews (Kaju)',
@@ -232,34 +117,6 @@ export const INITIAL_PRODUCTS = [
     badge: 'Zero Added Sugar'
   },
   {
-    id: 'prod-df-5',
-    title: 'Long Golden Kishmish (Green Raisins)',
-    category: 'Fresh Dry Fruits',
-    price: 199,
-    mrp: 280,
-    stock: 22,
-    rating: 4.6,
-    reviewsCount: 39,
-    hasVariants: true,
-    variants: [
-      { weight: '100g', label: '100g Pouch', price: 50, mrp: 70 },
-      { weight: '250g', label: '250g Pouch', price: 110, mrp: 150 },
-      { weight: '500g', label: '500g Pouch', price: 199, mrp: 280, isDefault: true },
-      { weight: '1kg', label: '1 KG Value Pack', price: 380, mrp: 520 }
-    ],
-    image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
-    description: 'Selected long seedless green raisins sun-dried in clean hygienic chambers. Soft, chewy, rich in iron, and perfect for sweet dishes.',
-    specs: {
-      packWeight: '500g (Default Variant)',
-      grade: 'Nashik Green Long Seedless',
-      shelfLife: '9 Months',
-      fssaiLicense: '10123000019842',
-      origin: 'Nashik, Maharashtra'
-    },
-    badge: 'Value Pack'
-  },
-  // --- RICE & PULSES ---
-  {
     id: 'prod-rc-1',
     title: 'HMT Kurnool Premium Steamed Sona Masoori Rice',
     category: 'Rice & Pulses',
@@ -309,7 +166,6 @@ export const INITIAL_PRODUCTS = [
     },
     badge: 'High Protein'
   },
-  // --- FLOURS, SOOJI & SUGAR ---
   {
     id: 'prod-fl-1',
     title: 'Chakki Fresh 100% Whole Wheat Atta',
@@ -335,6 +191,107 @@ export const INITIAL_PRODUCTS = [
     badge: 'Zero Maida'
   },
   {
+    id: 'prod-ka-1',
+    title: 'Preethi Zodiac MG-218 750W Mixer Grinder',
+    category: 'Kitchen Appliances',
+    price: 7499,
+    mrp: 9999,
+    stock: 6,
+    rating: 4.8,
+    reviewsCount: 38,
+    image: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Powerful 750W Vega W5 motor capable of grinding tough ingredients in 2 minutes. Includes MasterChef Food Processor jar for chopping, slicing, grating, and atta kneading.',
+    specs: {
+      power: '750 Watts Vega W5 Motor',
+      warranty: '2 Years Comprehensive + 5 Years on Motor',
+      boxContents: '1x Motor Unit, 5x Stainless Steel & Tritan Jars, MasterChef Bowl, Citrus Press, Kneader Blade, User Manual',
+      brand: 'Preethi',
+      modelNumber: 'MG-218'
+    },
+    badge: 'Best Seller in Vizag'
+  }
+];
+
+// Archived items reserved for future catalog expansion
+export const FUTURE_EXPANDED_PRODUCTS = [
+  {
+    id: 'prod-ka-2',
+    title: 'Pigeon Cruise 1800W Induction Cooktop',
+    category: 'Kitchen Appliances',
+    price: 1599,
+    mrp: 3195,
+    stock: 14,
+    rating: 4.6,
+    reviewsCount: 52,
+    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+    description: 'High-speed energy-efficient 1800W electromagnetic induction cooktop with 7 preset Indian cooking menus.',
+    badge: '50% OFF'
+  },
+  {
+    id: 'prod-ka-3',
+    title: 'Philips Digital Air Fryer HD9252/90 (4.1L)',
+    category: 'Kitchen Appliances',
+    price: 6999,
+    mrp: 10995,
+    stock: 4,
+    rating: 4.9,
+    reviewsCount: 29,
+    image: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80',
+    description: 'Patented Rapid Air Technology fries with up to 90% less fat.',
+    badge: 'Healthy Choice'
+  },
+  {
+    id: 'prod-ka-4',
+    title: 'Butterfly Smart Glass 3 Burner Gas Stove',
+    category: 'Kitchen Appliances',
+    price: 2899,
+    mrp: 5495,
+    stock: 5,
+    rating: 4.7,
+    reviewsCount: 41,
+    image: 'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=800&q=80',
+    description: 'Shatter-proof toughened black glass top with heavy-duty brass burners.',
+    badge: 'Popular'
+  },
+  {
+    id: 'prod-ka-5',
+    title: 'Prestige Iris 1.2L Stainless Steel Electric Kettle',
+    category: 'Kitchen Appliances',
+    price: 749,
+    mrp: 1295,
+    stock: 18,
+    rating: 4.5,
+    reviewsCount: 64,
+    image: 'https://images.unsplash.com/photo-1520038410233-7141be7e6f97?auto=format&fit=crop&w=800&q=80',
+    description: 'Fast boiling 1200W electric kettle with 360-degree swivel base.',
+    badge: 'Everyday Essential'
+  },
+  {
+    id: 'prod-df-5',
+    title: 'Long Golden Kishmish (Green Raisins)',
+    category: 'Fresh Dry Fruits',
+    price: 199,
+    mrp: 280,
+    stock: 22,
+    rating: 4.6,
+    reviewsCount: 39,
+    hasVariants: true,
+    variants: [
+      { weight: '100g', label: '100g Pouch', price: 50, mrp: 70 },
+      { weight: '250g', label: '250g Pouch', price: 110, mrp: 150 },
+      { weight: '500g', label: '500g Pouch', price: 199, mrp: 280, isDefault: true },
+      { weight: '1kg', label: '1 KG Value Pack', price: 380, mrp: 520 }
+    ],
+    image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
+    description: 'Selected long seedless green raisins sun-dried in clean hygienic chambers.',
+    badge: 'Value Pack'
+  },
+  {
     id: 'prod-sg-1',
     title: 'Anakapalle Organic Bellam / Natural Jaggery Blocks',
     category: 'Flours, Sooji & Sugar',
@@ -349,16 +306,9 @@ export const INITIAL_PRODUCTS = [
       { weight: '5kg', label: '5 KG Box', price: 350, mrp: 490 }
     ],
     image: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=800&q=80',
-    description: 'Famous Anakapalle market pure sugarcane bellam. Natural dark golden color with zero chemical bleaching. Rich in natural iron and minerals.',
-    specs: {
-      packWeight: '1 KG (Default Variant)',
-      grade: 'Chemical-Free Natural Jaggery',
-      shelfLife: '12 Months',
-      origin: 'Anakapalle, Vizag Dist.'
-    },
+    description: 'Famous Anakapalle market pure sugarcane bellam with zero chemical bleaching.',
     badge: 'Vizag Local'
   },
-  // --- SPICES & MASALAS ---
   {
     id: 'prod-sp-1',
     title: 'Guntur Teja Pure Red Chilli Powder (Mirchi Podi)',
@@ -375,13 +325,7 @@ export const INITIAL_PRODUCTS = [
       { weight: '1kg', label: '1 KG Value Pack', price: 180, mrp: 240, isDefault: true }
     ],
     image: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?auto=format&fit=crop&w=800&q=80',
-    description: 'Stem-cut Guntur Teja chillies cold-ground to preserve volatile oils and vibrant red color. Intense authentic heat for Indian cooking.',
-    specs: {
-      packWeight: '1 KG (Default Variant)',
-      grade: 'Extra Hot Cold-Ground Teja',
-      shelfLife: '12 Months',
-      origin: 'Guntur Mandi'
-    },
+    description: 'Stem-cut Guntur Teja chillies cold-ground to preserve volatile oils.',
     badge: 'Mandi Pure'
   },
   {
@@ -400,14 +344,8 @@ export const INITIAL_PRODUCTS = [
       { weight: '200g', label: '200g Pouch', price: 399, mrp: 550, isDefault: true }
     ],
     image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
-    description: 'Handpicked 8mm extra bold green cardamom pods from the hills of Idukki, Kerala. Intense essential aroma and full of plump black seeds.',
-    specs: {
-      packWeight: '200g (Default Variant)',
-      grade: '8mm Extra Bold Green Pods',
-      shelfLife: '12 Months',
-      origin: 'Idukki, Kerala'
-    },
-    badge: 'Extra Bold 8mm'
+    description: 'Direct Kerala estate harvest bold 8mm aromatic elaichi pods.',
+    badge: 'Estate Fresh'
   }
 ];
 

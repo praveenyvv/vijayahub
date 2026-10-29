@@ -130,7 +130,7 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
     }
   };
 
-  const QUICK_FILTER_TAGS = ['Rice', 'Oil', 'Atta', 'Toor Dal', 'Dry Fruits', 'Spices'];
+  const QUICK_FILTER_TAGS = ['Cashews', 'Almonds', 'Rice', 'Toor Dal', 'Atta', 'Walnuts', 'Anjeer', 'Mixer'];
 
   return (
     <>
@@ -430,43 +430,24 @@ export default function JumbotailHeader({ isDrawerOpen, setIsDrawerOpen }) {
             {/* Drawer Links */}
             <div className="flex-1 overflow-y-auto p-4 space-y-1">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-1">
-                Store Categories
+                Storefront Menu
               </div>
 
               <button
                 type="button"
                 onClick={() => {
                   setSelectedCategory('All');
+                  setSearchQuery('');
                   setIsDrawerOpen(false);
                 }}
-                className={`w-full flex items-center justify-between p-3 rounded-xl text-left text-xs font-bold transition-colors ${
-                  selectedCategory === 'All'
-                    ? 'bg-emerald-50 text-[#154d28]'
-                    : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                className="w-full flex items-center justify-between p-3 rounded-xl text-left text-xs font-bold bg-emerald-50 text-[#154d28] transition-colors"
               >
-                <span>📦 All Products</span>
+                <div className="flex items-center gap-2.5">
+                  <Store className="w-4 h-4 text-[#154d28]" />
+                  <span>📦 Wholesale Catalog (8 Products)</span>
+                </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
-
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-3 rounded-xl text-left text-xs font-bold transition-colors ${
-                    selectedCategory === cat
-                      ? 'bg-emerald-50 text-[#154d28]'
-                      : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>{cat === 'Dry Fruits & Nuts' ? '🌾' : '⚡'} {cat}</span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </button>
-              ))}
 
               <div className="pt-3 border-t border-slate-100 my-2" />
 

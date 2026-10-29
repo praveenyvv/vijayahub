@@ -29,8 +29,8 @@ export default function JumbotailBottomNav({ setIsDrawerOpen }) {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200/90 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:hidden">
-      <div className="grid grid-cols-4 h-14">
-        {/* Home Tab */}
+      <div className="grid grid-cols-3 h-14">
+        {/* Store / Home Tab */}
         <button
           type="button"
           onClick={() => {
@@ -41,17 +41,7 @@ export default function JumbotailBottomNav({ setIsDrawerOpen }) {
           className="flex flex-col items-center justify-center text-slate-600 hover:text-[#154d28] active:text-[#154d28] transition-colors"
         >
           <Home className="w-5 h-5 text-inherit" />
-          <span className="text-[10px] font-bold mt-0.5">Home</span>
-        </button>
-
-        {/* Categories Tab */}
-        <button
-          type="button"
-          onClick={() => setIsDrawerOpen(true)}
-          className="flex flex-col items-center justify-center text-slate-600 hover:text-[#154d28] active:text-[#154d28] transition-colors"
-        >
-          <Grid className="w-5 h-5 text-inherit" />
-          <span className="text-[10px] font-bold mt-0.5">Categories</span>
+          <span className="text-[10px] font-bold mt-0.5">Store</span>
         </button>
 
         {/* Orders Tab */}
@@ -68,7 +58,7 @@ export default function JumbotailBottomNav({ setIsDrawerOpen }) {
               </span>
             )}
           </div>
-          <span className="text-[10px] font-bold mt-0.5">Orders</span>
+          <span className="text-[10px] font-bold mt-0.5">My Orders</span>
         </button>
 
         {/* Cart Tab */}
