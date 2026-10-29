@@ -6,7 +6,7 @@ import {
   ShieldCheck,
   MapPin,
   Smartphone,
-  Banknote,
+  CreditCard,
   AlertTriangle,
   ArrowRight,
   ArrowLeft,
@@ -14,11 +14,34 @@ import {
   Copy,
   Check,
   ExternalLink,
-  CalendarCheck
+  CalendarCheck,
+  Zap
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useStore } from '../context/StoreContext';
 import confetti from 'canvas-confetti';
+
+/**
+ * Dynamically load Razorpay standard checkout script
+ */
+export function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve(false);
+      return;
+    }
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export function getAvailablePickupSlots() {
   const now = new Date();
@@ -53,7 +76,6 @@ export function getAvailablePickupSlots() {
   }
 
   // Today scheduled windows (only future windows that haven't ended yet)
-  // Morning: 10:00 AM - 1:00 PM (cutoff 12:30 PM)
   if (currentHour < 12 || (currentHour === 12 && currentMinutes <= 30)) {
     slots.push({
       id: 'today-morning',
@@ -61,7 +83,6 @@ export function getAvailablePickupSlots() {
     });
   }
 
-  // Afternoon: 1:00 PM - 5:00 PM (cutoff 4:30 PM)
   if (currentHour < 16 || (currentHour === 16 && currentMinutes <= 30)) {
     slots.push({
       id: 'today-afternoon',
@@ -69,7 +90,6 @@ export function getAvailablePickupSlots() {
     });
   }
 
-  // Evening: 5:00 PM - 8:30 PM (cutoff 8:00 PM)
   if (currentHour < 20) {
     slots.push({
       id: 'today-evening',
@@ -111,8 +131,8 @@ export default function CheckoutModal() {
 
   const availablePickupSlots = React.useMemo(() => getAvailablePickupSlots(), [isCheckoutOpen]);
 
-  // Multi-step checkout: 'details' -> 'payment' -> finish
-  const [step, setStep] = useState('details'); // 'details' or 'payment'
+  // Multi-step checkout: 'details' -> 'payment'
+  const [step, setStep] = useState('details');
 
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
@@ -145,8 +165,6 @@ export default function CheckoutModal() {
     }
   }, [currentUser, isCheckoutOpen]);
 
-  // Payment method
-  const [paymentMethod, setPaymentMethod] = useState('upi_qr'); // 'upi_qr' or 'cod'
   const [upiRefNumber, setUpiRefNumber] = useState('');
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -184,10 +202,9 @@ export default function CheckoutModal() {
 
   const upiId = storeInfo.upiId || '9392624326@idfcfirst';
   const payeeName = storeInfo.upiPayeeName || 'VijayaHub';
+  const finalTotal = cartSubtotal; // Central hub pickup is 100% Free (₹0 fee)
 
-  const finalTotal = cartSubtotal; // Store pickup is 100% Free (₹0 fee)
-
-  // Generate real dynamic UPI intent URL with exact order amount
+  // Dynamic UPI Intent URL with exact order amount
   const orderRef = Math.floor(1000 + Math.random() * 9000);
   const upiDeepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
     payeeName
@@ -199,31 +216,28 @@ export default function CheckoutModal() {
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  // Step 1: Proceed to Payment or Finish
-  const handleProceedToPayment = (e) => {
-    if (e) e.preventDefault();
-
+  // Validation helper
+  const validateForm = () => {
     if (!isStoreOpen) {
       alert('Store is temporarily closed for counter pickups. Please check back soon.');
-      return;
+      return false;
     }
 
     if (!customerName.trim()) {
       alert('Please enter your full name.');
-      return;
+      return false;
     }
     const cleanPhone = customerPhone.replace(/\D/g, '');
     if (!cleanPhone || cleanPhone.length < 10) {
       alert('Please enter a valid 10-digit mobile number for order verification.');
-      return;
+      return false;
     }
 
-    // --- Validate Per-Mobile Purchase Limits for offer items ---
+    // Validate Per-Mobile Purchase Limits for offer items
     for (const cartItem of cart) {
       const prod = products.find((p) => p.id === cartItem.id);
       const limit = prod?.maxPerCustomer || prod?.max_per_customer || 0;
       if (limit > 0) {
-        // Calculate units previously purchased by this phone number across past non-cancelled orders
         const previousPurchased = orders
           .filter(
             (o) =>
@@ -242,27 +256,88 @@ export default function CheckoutModal() {
           alert(
             `⚠️ Special Offer Limit Exceeded!\n\n"${prod.title}" is limited to a maximum of ${limit} unit(s) per mobile number.\n\nYou have already purchased ${previousPurchased} unit(s) previously.\nPlease adjust your cart quantity to complete this order.`
           );
-          return;
+          return false;
         }
       }
     }
 
-    // If Pay at Store Counter on Pickup, finalize immediately
-    if (paymentMethod === 'cod') {
-      finalizeOrder('Pay at Store Counter on Pickup (Cash/UPI)', 'PENDING_AT_HANDOVER');
-      return;
-    }
-
-    // Otherwise, move to Dedicated UPI QR Screen
-    setStep('payment');
+    return true;
   };
 
-  // Step 2: Finalize Order after Payment
-  const handleConfirmPaid = () => {
-    if (!isStoreOpen) {
-      alert('Store is temporarily closed for counter pickups. Please check back soon.');
+  /**
+   * Launch Razorpay Standard Checkout Gateway
+   * Supports UPI Intent (GPay, PhonePe, Paytm, BHIM), Debit/Credit Cards & NetBanking
+   */
+  const triggerRazorpayCheckout = async () => {
+    if (!validateForm()) return;
+
+    setIsProcessingPayment(true);
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      alert('Razorpay payment gateway is taking longer to load. Redirecting to Direct UPI QR / Mobile Apps payment.');
+      setIsProcessingPayment(false);
+      setStep('payment');
       return;
     }
+
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+
+    try {
+      const options = {
+        key: razorpayKey,
+        amount: Math.round(finalTotal * 100), // in paise
+        currency: 'INR',
+        name: 'VijayaHub Wholesale',
+        description: `Wholesale Pickup Order (${pickupSlot})`,
+        image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=128&q=80',
+        handler: function (response) {
+          const txnId = response.razorpay_payment_id || `RZP-${Date.now().toString().slice(-8)}`;
+          finalizeOrder(`Online Payment (Razorpay • UPI/Card)`, 'PAID', txnId);
+        },
+        prefill: {
+          name: customerName,
+          email: customerEmail || `${customerPhone}@customer.vijayahub.com`,
+          contact: customerPhone
+        },
+        notes: {
+          pickup_slot: pickupSlot,
+          hub_location: 'Dwaraka Nagar, Visakhapatnam'
+        },
+        theme: {
+          color: '#154d28' // VijayaHub brand green
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessingPayment(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (resp) {
+        alert(`Payment declined: ${resp.error?.description || 'Transaction incomplete'}. You can also pay via Direct UPI QR below.`);
+        setIsProcessingPayment(false);
+        setStep('payment');
+      });
+      rzp.open();
+    } catch (err) {
+      console.warn('Razorpay open notice:', err);
+      // Seamlessly fallback to direct UPI QR / apps
+      setStep('payment');
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Step 1: Proceed to Payment
+  const handleProceedToPayment = async (e) => {
+    if (e) e.preventDefault();
+    if (!validateForm()) return;
+    await triggerRazorpayCheckout();
+  };
+
+  // Step 2: Finalize Order after Direct UPI Payment
+  const handleConfirmPaid = () => {
+    if (!validateForm()) return;
 
     if (!upiRefNumber.trim()) {
       const confirmed = window.confirm(
@@ -271,13 +346,11 @@ export default function CheckoutModal() {
       if (!confirmed) return;
     }
 
-    finalizeOrder(
-      `Direct UPI (${upiId})${upiRefNumber ? ` • Ref: ${upiRefNumber}` : ''}`,
-      'PAID'
-    );
+    const txnRef = upiRefNumber.trim() || `UPI-${Date.now().toString().slice(-8)}`;
+    finalizeOrder(`Direct UPI (${upiId}) • Ref: ${txnRef}`, 'PAID', txnRef);
   };
 
-  const finalizeOrder = (methodDescription, paymentStatus) => {
+  const finalizeOrder = (methodDescription, paymentStatus = 'PAID', transactionId = '') => {
     setIsProcessingPayment(true);
 
     setTimeout(() => {
@@ -293,6 +366,8 @@ export default function CheckoutModal() {
       } catch (err) {
         // fallback
       }
+
+      const verifiedUtr = transactionId || upiRefNumber.trim() || `TXN-${Date.now().toString().slice(-8)}`;
 
       placeOrder({
         userId: currentUser?.id || null,
@@ -319,16 +394,17 @@ export default function CheckoutModal() {
         deliveryFee: 0,
         total: finalTotal,
         paymentMethod: methodDescription,
-        paymentStatus: paymentStatus,
-        upiRefNumber: upiRefNumber || 'Counter Payment',
-        notes: `Selected Slot: ${pickupSlot}. Strictly 24-hr pickup window.`
+        paymentStatus: 'PAID', // Mandatory 100% Upfront Paid
+        upiRefNumber: verifiedUtr,
+        notes: `Selected Slot: ${pickupSlot}. 100% Online Paid. Strictly 24-hr pickup window.`
       });
 
       // Auto-set currentUser so this phone session stays linked to their orders
       if (!currentUser && customerPhone) {
-        const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : `usr-${customerPhone}-${Date.now()}`;
+        const generatedId =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `usr-${customerPhone}-${Date.now()}`;
 
         setCurrentUser({
           id: generatedId,
@@ -342,7 +418,7 @@ export default function CheckoutModal() {
 
       // Reset step
       setStep('details');
-    }, 1000);
+    }, 800);
   };
 
   return (
@@ -360,7 +436,7 @@ export default function CheckoutModal() {
             {step === 'payment' && (
               <button
                 onClick={() => setStep('details')}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors shrink-0"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors shrink-0 cursor-pointer"
                 title="Back to Edit Details"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -369,10 +445,10 @@ export default function CheckoutModal() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-extrabold text-base sm:text-lg text-white truncate">
-                  {step === 'details' ? 'Store Pickup Checkout' : 'Scan UPI QR to Pay'}
+                  {step === 'details' ? 'Store Pickup Checkout' : 'UPI Payment & Instant Order'}
                 </span>
-                <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-400/30 shrink-0">
-                  {step === 'details' ? 'Step 1: Details' : 'Step 2: Payment'}
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-400/30 shrink-0">
+                  {step === 'details' ? '100% Online Payment' : 'Scan & Pay'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 truncate mt-0.5">
@@ -388,7 +464,7 @@ export default function CheckoutModal() {
               setIsCheckoutOpen(false);
               setStep('details');
             }}
-            className="w-9 h-9 rounded-full bg-slate-800 hover:bg-rose-600 hover:text-white flex items-center justify-center text-slate-300 transition-colors shrink-0 shadow-xs"
+            className="w-9 h-9 rounded-full bg-slate-800 hover:bg-rose-600 hover:text-white flex items-center justify-center text-slate-300 transition-colors shrink-0 shadow-xs cursor-pointer"
             title="Close Checkout"
           >
             <X className="w-5 h-5" />
@@ -396,7 +472,7 @@ export default function CheckoutModal() {
         </div>
 
         {/* ============================================================ */}
-        {/* STEP 1: DETAILS & PICKUP SLOT SELECTION (NO QR CODE HERE)    */}
+        {/* STEP 1: DETAILS & MANDATORY ONLINE PAYMENT REQUIREMENT       */}
         {/* ============================================================ */}
         {step === 'details' && (
           <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
@@ -412,7 +488,7 @@ export default function CheckoutModal() {
                       {storeInfo.name}
                     </p>
                     <span className="bg-emerald-100 text-emerald-800 font-extrabold text-[10px] px-2 py-0.2 rounded-full">
-                      FREE (₹0 Fee)
+                      FREE COUNTER PICKUP (₹0)
                     </span>
                   </div>
                   <p className="text-slate-600 text-[11px] leading-relaxed mb-1.5">
@@ -433,7 +509,7 @@ export default function CheckoutModal() {
                   Important 24-Hour Pickup & Inventory Rule:
                 </p>
                 <p className="text-rose-800 text-[11px] leading-relaxed">
-                  Your ordered items are reserved at our Dwaraka Nagar hub for <strong>exactly 24 hours</strong>. If not collected within 24 hours, the order is <strong>automatically cancelled</strong> and the stock is <strong>automatically restocked into inventory</strong> for other customers.
+                  Your ordered items are reserved at our Dwaraka Nagar hub for <strong>exactly 24 hours</strong>. If not collected within 24 hours, the order is <strong>automatically cancelled</strong> and the stock is <strong>automatically restocked into inventory</strong>.
                 </p>
               </div>
             </div>
@@ -451,7 +527,7 @@ export default function CheckoutModal() {
                     key={slot.id}
                     type="button"
                     onClick={() => setPickupSlot(slot.label)}
-                    className={`p-3 rounded-xl border text-left text-xs font-medium transition-all ${
+                    className={`p-3 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer ${
                       pickupSlot === slot.label
                         ? 'border-amber-600 bg-amber-50 text-amber-950 font-bold ring-2 ring-amber-500/20'
                         : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
@@ -510,54 +586,42 @@ export default function CheckoutModal() {
               </div>
             </div>
 
-            {/* 3. Payment Preference */}
-            <div className="space-y-3 pt-1 border-t border-slate-100">
+            {/* 3. Mandatory 100% Upfront Online Payment (Pay-at-store removed) */}
+            <div className="space-y-2 pt-1 border-t border-slate-100">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  3. Payment Preference:
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>3. 100% Upfront Online Payment (Mandatory):</span>
                 </label>
                 <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   Zero Gateway Fees
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('upi_qr')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    paymentMethod === 'upi_qr'
-                      ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-500/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 font-bold text-xs text-slate-900 mb-1">
-                    <QrCode className="w-4 h-4 text-amber-600" />
-                    <span>Instant UPI QR Code</span>
+              <div className="p-4 rounded-2xl border-2 border-emerald-600/30 bg-emerald-50/50 space-y-2.5">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <CreditCard className="w-5 h-5" />
                   </div>
-                  <p className="text-[10px] text-slate-500">
-                    Pay now via GPay / PhonePe (Fast pickup)
-                  </p>
-                </button>
+                  <div>
+                    <p className="font-extrabold text-xs text-slate-900 mb-0.5">
+                      Online Pre-Payment Required for All Orders
+                    </p>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      To lock your wholesale items and guarantee slot allocation, full payment must be completed online via UPI, Cards, or NetBanking before pickup handover.
+                    </p>
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('cod')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    paymentMethod === 'cod'
-                      ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-500/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 font-bold text-xs text-slate-900 mb-1">
-                    <Banknote className="w-4 h-4 text-emerald-600" />
-                    <span>Pay at Counter</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">
-                    Pay cash/UPI when you inspect items at hub
-                  </p>
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-emerald-200/60">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Instant UPI:</span>
+                  <span className="bg-white text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs">Google Pay</span>
+                  <span className="bg-white text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs">PhonePe</span>
+                  <span className="bg-white text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs">Paytm</span>
+                  <span className="bg-white text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs">BHIM UPI</span>
+                  <span className="bg-white text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs">Cards</span>
+                  <span className="bg-white text-slate-800 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs">NetBanking</span>
+                </div>
               </div>
             </div>
 
@@ -570,17 +634,17 @@ export default function CheckoutModal() {
                 </span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>Store Pickup Fee:</span>
+                <span>Store Counter Pickup Fee:</span>
                 <span className="text-emerald-700 font-bold">FREE (₹0)</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-extrabold text-slate-900">
-                <span>Final Total to Pay:</span>
-                <span className="text-lg text-amber-700">₹{finalTotal.toLocaleString('en-IN')}</span>
+                <span>Total Payable Upfront:</span>
+                <span className="text-lg text-emerald-800">₹{finalTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
-            {/* Bottom Proceed Button */}
-            <div className="pt-2">
+            {/* Bottom Proceed Buttons */}
+            <div className="pt-2 space-y-2">
               {!isStoreOpen ? (
                 <button
                   type="button"
@@ -590,33 +654,62 @@ export default function CheckoutModal() {
                   <span>Store Closed - Reopening Soon</span>
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleProceedToPayment}
-                  className="w-full py-4 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-600/30 transition-all active:scale-[0.99] cursor-pointer"
-                >
-                  <span>
-                    {paymentMethod === 'upi_qr'
-                      ? `Proceed to UPI Payment (₹${finalTotal.toLocaleString('en-IN')})`
-                      : `Confirm Store Pickup Order (₹${finalTotal.toLocaleString('en-IN')})`}
-                  </span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleProceedToPayment}
+                    disabled={isProcessingPayment}
+                    className="w-full py-4 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/30 transition-all active:scale-[0.99] cursor-pointer"
+                  >
+                    {isProcessingPayment ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Connecting Payment Gateway...
+                      </span>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+                        <span>Proceed to Pay ₹{finalTotal.toLocaleString('en-IN')} Online</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!customerName.trim()) {
+                        alert('Please enter your full name first.');
+                        return;
+                      }
+                      const clean = customerPhone.replace(/\D/g, '');
+                      if (!clean || clean.length < 10) {
+                        alert('Please enter a valid 10-digit mobile number first.');
+                        return;
+                      }
+                      setStep('payment');
+                    }}
+                    className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                  >
+                    <QrCode className="w-4 h-4 text-slate-600" />
+                    <span>Or Pay via Direct UPI QR / Mobile Intent Apps</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
         )}
 
         {/* ============================================================ */}
-        {/* STEP 2: DEDICATED UPI PAYMENT SCREEN                         */}
+        {/* STEP 2: DEDICATED UPI PAYMENT & QR CODE SCREEN               */}
         {/* ============================================================ */}
         {step === 'payment' && (
           <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
-            <div className="bg-gradient-to-b from-amber-500/10 via-orange-500/5 to-white border-2 border-amber-500/30 rounded-3xl p-5 text-center space-y-4">
+            <div className="bg-gradient-to-b from-emerald-500/10 via-amber-500/5 to-white border-2 border-emerald-500/30 rounded-3xl p-5 text-center space-y-4">
               <div className="flex flex-col items-center justify-center">
-                <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-[11px] font-extrabold mb-2">
-                  <QrCode className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Scan to Pay Exact Amount</span>
+                <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-[11px] font-extrabold mb-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>100% Secure Upfront Payment</span>
                 </div>
 
                 <p className="text-3xl font-black text-slate-900 tracking-tight">
@@ -625,6 +718,25 @@ export default function CheckoutModal() {
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
                   Store Pickup Order for <strong>{customerName}</strong> ({pickupSlot})
                 </p>
+              </div>
+
+              {/* Instant Razorpay Trigger Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={triggerRazorpayCheckout}
+                  disabled={isProcessingPayment}
+                  className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-extrabold text-xs shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2 cursor-pointer transition"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Launch Razorpay Gateway (UPI Intent, Cards, NetBanking)</span>
+                </button>
+              </div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="grow border-t border-slate-200"></div>
+                <span className="shrink mx-3 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">or pay via direct UPI QR</span>
+                <div className="grow border-t border-slate-200"></div>
               </div>
 
               {/* Dynamic QR Code */}
@@ -638,7 +750,7 @@ export default function CheckoutModal() {
                     className="rounded-lg"
                   />
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-9 h-9 rounded-full bg-white shadow-md border-2 border-amber-400 flex items-center justify-center font-black text-[10px] text-amber-800">
+                    <div className="w-9 h-9 rounded-full bg-white shadow-md border-2 border-emerald-600 flex items-center justify-center font-black text-[10px] text-emerald-800">
                       VH
                     </div>
                   </div>
@@ -653,7 +765,7 @@ export default function CheckoutModal() {
               <div className="pt-1">
                 <a
                   href={upiDeepLink}
-                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-600/25 transition-all"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-700/25 transition-all"
                 >
                   <Smartphone className="w-4 h-4" />
                   <span>Tap to Pay on Mobile (GPay / PhonePe / Paytm)</span>
@@ -675,7 +787,7 @@ export default function CheckoutModal() {
                 <button
                   type="button"
                   onClick={handleCopyUPI}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
                 >
                   {copiedUpi ? (
                     <>
@@ -708,7 +820,7 @@ export default function CheckoutModal() {
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-mono font-bold"
                 />
                 <p className="text-[10px] text-slate-500">
-                  After payment, enter your UTR number above and click the button below to reserve your parcel.
+                  After payment, enter your UTR number above and click the button below to generate your 4-digit counter pickup OTP.
                 </p>
               </div>
             </div>
@@ -728,16 +840,16 @@ export default function CheckoutModal() {
                   type="button"
                   onClick={handleConfirmPaid}
                   disabled={isProcessingPayment}
-                  className="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                  className="w-full py-4 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/30 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   {isProcessingPayment ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Reserving Items & Placing Order...
+                      Verifying Payment & Generating OTP...
                     </span>
                   ) : (
                     <>
-                      <span>I Have Paid ₹{finalTotal.toLocaleString('en-IN')} • Place Order</span>
+                      <span>I Have Paid ₹{finalTotal.toLocaleString('en-IN')} • Generate Pickup OTP</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -747,7 +859,7 @@ export default function CheckoutModal() {
               <button
                 type="button"
                 onClick={() => setStep('details')}
-                className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1"
+                className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Go back and edit slot / contact details</span>

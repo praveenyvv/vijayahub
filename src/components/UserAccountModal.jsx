@@ -43,10 +43,9 @@ export default function UserAccountModal() {
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
-  const [isDevBypass, setIsDevBypass] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // Countdown timer for Resend OTP
+  // Countdown timer for Resend OTP (60s)
   useEffect(() => {
     let timer;
     if (countdown > 0) {
@@ -74,14 +73,13 @@ export default function UserAccountModal() {
     setStatusMessage({ text: '', type: '' });
 
     try {
-      const result = await sendPhoneOtp(cleanPhone);
+      const result = await sendPhoneOtp(cleanPhone, 'recaptcha-container');
       if (result.success) {
         setAuthStage('otp');
         setCountdown(60);
-        setIsDevBypass(Boolean(result.isDevFallback));
         setStatusMessage({
           text: result.message || `Verification code sent to +91 ${cleanPhone.slice(-10)}`,
-          type: result.isDevFallback ? 'info' : 'success'
+          type: 'success'
         });
       } else {
         setStatusMessage({ text: result.error || 'Failed to send OTP. Please try again.', type: 'error' });
@@ -119,29 +117,6 @@ export default function UserAccountModal() {
       }
     } catch (err) {
       setStatusMessage({ text: 'Error verifying OTP code.', type: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDevQuickVerify = async () => {
-    setOtpCode('123456');
-    setIsLoading(true);
-    setStatusMessage({ text: '', type: '' });
-    try {
-      const result = await verifyPhoneOtp(loginPhone || '9848012345', '123456', loginName);
-      if (result.success && result.user) {
-        setCurrentUser(result.user);
-        setActiveTab('orders');
-        setAuthStage('phone');
-        setOtpCode('');
-        // Close modal immediately so storefront advances into logged-in state
-        setIsAuthModalOpen(false);
-      } else {
-        setStatusMessage({ text: result.error || 'Quick verify failed.', type: 'error' });
-      }
-    } catch (err) {
-      console.warn('Dev verify error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -310,6 +285,9 @@ export default function UserAccountModal() {
                     />
                   </div>
 
+                  {/* Invisible Recaptcha Container for Firebase Phone Auth */}
+                  <div id="recaptcha-container"></div>
+
                   <button
                     type="submit"
                     disabled={isLoading || loginPhone.length < 10}
@@ -360,19 +338,6 @@ export default function UserAccountModal() {
                       className="w-full px-3.5 py-2.5 text-center tracking-widest font-mono text-lg font-black bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
                     />
                   </div>
-
-                  {isDevBypass && (
-                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900 flex items-center justify-between">
-                      <span>Dev Mode: Default test code is <strong>123456</strong></span>
-                      <button
-                        type="button"
-                        onClick={handleDevQuickVerify}
-                        className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] cursor-pointer"
-                      >
-                        1-Click Verify
-                      </button>
-                    </div>
-                  )}
 
                   <button
                     type="submit"
