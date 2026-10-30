@@ -1,9 +1,8 @@
 /**
  * Fast2SMS Gateway Client for VijayaHub
  * 
- * Supports both direct Fast2SMS Quick/OTP API dispatch and secure proxying.
- * Route: OTP (Quick transactional SMS, bypasses DND in India, ~2-5s delivery).
- * Format: Standard 6-digit numeric OTP.
+ * Route: Quick transactional SMS ('q' route - unlocked with account balance, bypasses DND in India).
+ * Delivery Speed: ~2-5s to Airtel, Jio, Vi.
  */
 
 const FAST2SMS_API_KEY = import.meta.env.VITE_FAST2SMS_API_KEY || '';
@@ -24,8 +23,7 @@ export async function sendFast2SMSOTP(phone, otp) {
 
   if (!isFast2SMSConfigured) {
     console.warn(
-      '⚠️ [Fast2SMS] VITE_FAST2SMS_API_KEY is not configured in .env / Vercel.\n' +
-      'Please sign up at https://www.fast2sms.com and add your API Key.'
+      '⚠️ [Fast2SMS] VITE_FAST2SMS_API_KEY is not configured in .env / Vercel.'
     );
     return {
       success: false,
@@ -36,11 +34,7 @@ export async function sendFast2SMSOTP(phone, otp) {
   try {
     console.log(`📱 [Fast2SMS] Dispatching OTP SMS to +91 ${cleanPhone}...`);
 
-    // Fast2SMS OTP Route API
-    // Parameters:
-    // route: 'otp'
-    // variables_values: numeric OTP code
-    // numbers: 10-digit phone number
+    // Fast2SMS Quick Route API (Active and working immediately)
     const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
       method: 'POST',
       headers: {
@@ -48,8 +42,9 @@ export async function sendFast2SMSOTP(phone, otp) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        route: 'otp',
-        variables_values: otp,
+        route: 'q',
+        message: `Your VijayaHub verification code is ${otp}. Valid for 10 minutes.`,
+        language: 'english',
         numbers: cleanPhone
       })
     });
