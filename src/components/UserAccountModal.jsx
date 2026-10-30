@@ -22,7 +22,7 @@ import {
   Star
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser, clearRecaptchaVerifier } from '../services/authService';
+import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser } from '../services/authService';
 
 export default function UserAccountModal() {
   const {
@@ -55,7 +55,6 @@ export default function UserAccountModal() {
   }, [countdown]);
 
   const handleCloseModal = () => {
-    clearRecaptchaVerifier();
     setIsAuthModalOpen(false);
     setAuthStage('phone');
     setOtpCode('');
@@ -74,7 +73,7 @@ export default function UserAccountModal() {
     setStatusMessage({ text: '', type: '' });
 
     try {
-      const result = await sendPhoneOtp(cleanPhone, 'recaptcha-container');
+      const result = await sendPhoneOtp(cleanPhone);
       if (result.success) {
         setAuthStage('otp');
         setCountdown(60);
@@ -124,7 +123,6 @@ export default function UserAccountModal() {
   };
 
   const handleLogout = async () => {
-    clearRecaptchaVerifier();
     await signOutAuthUser();
     setCurrentUser(null);
     setLoginPhone('');
@@ -225,16 +223,13 @@ export default function UserAccountModal() {
         <div className="p-5 sm:p-6 max-h-[75vh] overflow-y-auto space-y-4">
           {/* NOT LOGGED IN: REAL SECURE PHONE OTP FLOW */}
           {!currentUser ? (
-            <div className="space-y-4 relative">
-              {/* Permanent invisible container for Firebase reCAPTCHA (never unmounted) */}
-              <div id="recaptcha-container" className="my-0 p-0 h-0 overflow-hidden"></div>
-
+            <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-sm mb-0.5">Secure Phone Verification</p>
+                  <p className="font-bold text-sm mb-0.5">Instant Mobile Verification</p>
                   <p className="text-slate-600 text-[11px] leading-relaxed">
-                    Verify your phone number with an SMS OTP to access your orders, pickup codes, and GST tax invoices.
+                    Verify your phone number with a 6-digit SMS code to track your orders, pickup OTPs, and invoices.
                   </p>
                 </div>
               </div>

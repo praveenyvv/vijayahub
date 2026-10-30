@@ -1,16 +1,9 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import {
-  firebaseAuth,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  isFirebaseConfigured
-} from './firebaseClient';
+import { sendFast2SMSOTP, isFast2SMSConfigured } from './fast2smsService';
 
 export const AUTH_USER_STORAGE_KEY = 'vijayahub_user_v1';
 export const AUTH_SESSION_STORAGE_KEY = 'vijayahub_session_v1';
-
-let activeConfirmationResult = null;
-let activeRecaptchaVerifier = null;
+const PENDING_OTP_STORAGE_KEY = 'vijayahub_pending_otp_v1';
 
 /**
  * Extract 10-digit standard Indian phone number
@@ -83,41 +76,22 @@ export function persistUserAndSession(userObj, sessionObj) {
 }
 
 /**
- * Clean up active reCAPTCHA verifier instance and reset DOM container safely
+ * Generate a cryptographically random 6-digit numeric OTP
  */
-export function clearRecaptchaVerifier(containerId = 'recaptcha-container') {
-  if (activeRecaptchaVerifier) {
-    try {
-      activeRecaptchaVerifier.clear();
-    } catch (e) {
-      // ignore cleanup errors
-    }
-    activeRecaptchaVerifier = null;
+function generateRandomOTP() {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return String(100000 + (array[0] % 900000));
   }
-
-  if (typeof window !== 'undefined' && window.recaptchaVerifier) {
-    try {
-      window.recaptchaVerifier.clear();
-    } catch (e) {
-      // ignore
-    }
-    window.recaptchaVerifier = null;
-  }
-
-  if (typeof document !== 'undefined') {
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = '';
-    }
-  }
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 /**
- * Send real 6-digit SMS OTP to phone number using Firebase Phone Auth.
- * Includes complete reCAPTCHA lifecycle management, E.164 format enforcement,
- * and comprehensive diagnostic error reporting.
+ * Send 6-digit SMS OTP via Fast2SMS (with Supabase fallback if configured)
+ * @param {string} rawPhone 
  */
-export async function sendPhoneOtp(rawPhone, containerId = 'recaptcha-container') {
+export async function sendPhoneOtp(rawPhone) {
   const cleanPhone = extract10DigitPhone(rawPhone);
 
   if (!cleanPhone || cleanPhone.length !== 10) {
@@ -130,197 +104,95 @@ export async function sendPhoneOtp(rawPhone, containerId = 'recaptcha-container'
   if (!isValidIndianMobile(cleanPhone)) {
     return {
       success: false,
-      error: 'Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.'
+      error: 'Please enter a valid Indian mobile number starting with 6, 7, 8, or 9.'
     };
   }
 
-  const e164 = formatE164Phone(cleanPhone);
+  // Generate real 6-digit OTP
+  const generatedOtp = generateRandomOTP();
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
-  // 1. Check for real Firebase environment credentials
-  if (!isFirebaseConfigured) {
-    console.error(
-      '❌ [Firebase Phone Auth Diagnostic] Missing Firebase Configuration Keys!\n' +
-      'VITE_FIREBASE_API_KEY and VITE_FIREBASE_PROJECT_ID are not set in environment.\n' +
-      'Add them to your Vercel Project Settings -> Environment Variables or local .env file.'
-    );
-
-    // If Supabase SMS is configured, attempt fallback before failing
-    if (isSupabaseConfigured && supabase) {
-      try {
-        console.log(`📡 Attempting Supabase SMS Gateway fallback for ${e164}...`);
-        const { error } = await supabase.auth.signInWithOtp({
-          phone: e164,
-          options: { channel: 'sms' }
-        });
-        if (!error) {
-          return {
-            success: true,
-            phone: cleanPhone,
-            e164,
-            provider: 'supabase',
-            message: `Verification code sent to +91 ${cleanPhone} via SMS gateway.`
-          };
-        }
-      } catch (sbErr) {
-        console.warn('Supabase SMS fallback error:', sbErr);
-      }
-    }
-
-    return {
-      success: false,
-      code: 'auth/missing-config',
-      error:
-        'Firebase configuration missing. Please add VITE_FIREBASE_API_KEY and VITE_FIREBASE_PROJECT_ID in your Vercel Project Environment Variables.'
-    };
-  }
-
-  // 2. Prepare reCAPTCHA container
-  const container = typeof document !== 'undefined' ? document.getElementById(containerId) : null;
-  if (!container) {
-    console.error(`❌ [Firebase Auth] Container element #${containerId} not found in the DOM.`);
-    return {
-      success: false,
-      code: 'auth/missing-container',
-      error: 'Authentication reCAPTCHA container was not found in page. Please refresh the page.'
-    };
-  }
-
-  // Always reset existing verifier and empty the container to prevent DOM collision crashes
-  clearRecaptchaVerifier(containerId);
-
+  // Cache pending verification locally
   try {
-    console.log(`🛡️ [Firebase Auth] Initializing invisible RecaptchaVerifier for ${containerId}...`);
-    const verifier = new RecaptchaVerifier(firebaseAuth, container, {
-      size: 'invisible',
-      callback: () => {
-        console.log('✅ [reCAPTCHA] Solved token generated automatically.');
-      },
-      'expired-callback': () => {
-        console.warn('⚠️ [reCAPTCHA] Token expired. Resetting verifier.');
-        clearRecaptchaVerifier(containerId);
-      }
-    });
-
-    activeRecaptchaVerifier = verifier;
-    if (typeof window !== 'undefined') {
-      window.recaptchaVerifier = verifier;
-    }
-
-    // Render the invisible widget
-    await verifier.render();
-  } catch (verifierError) {
-    console.error('❌ [Firebase RecaptchaVerifier Render Error]:', verifierError);
-    clearRecaptchaVerifier(containerId);
-    return {
-      success: false,
-      code: verifierError?.code || 'auth/recaptcha-render-failed',
-      error: `reCAPTCHA initialization failed: ${verifierError?.message || 'Check DOM state'}`
-    };
-  }
-
-  // 3. Dispatch SMS OTP via Firebase Auth
-  try {
-    console.log(`📱 [Firebase Auth] Requesting real SMS OTP for ${e164}...`);
-    const confirmationResult = await signInWithPhoneNumber(
-      firebaseAuth,
-      e164,
-      activeRecaptchaVerifier
+    sessionStorage.setItem(
+      PENDING_OTP_STORAGE_KEY,
+      JSON.stringify({
+        phone: cleanPhone,
+        otp: generatedOtp,
+        expiresAt
+      })
     );
-    activeConfirmationResult = confirmationResult;
-    console.log(`✅ [Firebase Auth] SMS OTP dispatched successfully to ${e164}!`);
-
-    return {
-      success: true,
-      phone: cleanPhone,
-      e164,
-      provider: 'firebase',
-      message: `6-digit SMS verification code sent to +91 ${cleanPhone}.`
-    };
-  } catch (fbError) {
-    console.error('❌ [Firebase Phone Auth Failure Diagnostic Breakdown]:');
-    console.error('  → Error Code:', fbError.code);
-    console.error('  → Error Message:', fbError.message);
-    console.error('  → Attempted Phone Number:', e164);
-
-    clearRecaptchaVerifier(containerId);
-
-    // Precise, actionable human-readable error descriptions for production
-    let humanMessage = fbError.message || 'Failed to send SMS OTP.';
-
-    switch (fbError.code) {
-      case 'auth/unauthorized-domain':
-        humanMessage =
-          `Domain not authorized in Firebase Console! Please add your current domain (${
-            typeof window !== 'undefined' ? window.location.hostname : 'your-domain'
-          }) under: Firebase Console → Authentication → Settings → Authorized domains.`;
-        break;
-
-      case 'auth/invalid-app-credential':
-      case 'auth/missing-client-identifier':
-        humanMessage =
-          'Firebase App Credential validation failed. Please ensure VITE_FIREBASE_API_KEY and VITE_FIREBASE_PROJECT_ID are correct and authorized domains include this host.';
-        break;
-
-      case 'auth/invalid-api-key':
-        humanMessage =
-          'Invalid Firebase API Key. Please verify VITE_FIREBASE_API_KEY in your Vercel Environment Variables.';
-        break;
-
-      case 'auth/invalid-phone-number':
-        humanMessage =
-          `Invalid phone number format: "${e164}". Indian mobile numbers must be in E.164 format (+91XXXXXXXXXX).`;
-        break;
-
-      case 'auth/quota-exceeded':
-        humanMessage =
-          'Firebase SMS daily quota exceeded. Identity Platform requires billing activation in Google Cloud / Firebase Console to increase SMS limits.';
-        break;
-
-      case 'auth/too-many-requests':
-        humanMessage =
-          'Too many OTP requests have been sent to this number. Please wait a few minutes before trying again.';
-        break;
-
-      case 'auth/captcha-check-failed':
-        humanMessage =
-          'reCAPTCHA verification challenge failed. Please refresh your browser window and retry.';
-        break;
-
-      case 'auth/operation-not-allowed':
-        humanMessage =
-          'Phone Authentication is disabled! Enable the "Phone" sign-in provider in Firebase Console → Authentication → Sign-in method.';
-        break;
-
-      case 'auth/network-request-failed':
-        humanMessage =
-          'Network connection error connecting to Google Identity servers. Please check your internet connection.';
-        break;
-
-      default:
-        humanMessage = fbError.message || 'Failed to send SMS OTP. Please check your network and configuration.';
-    }
-
-    return {
-      success: false,
-      code: fbError.code,
-      error: humanMessage
-    };
+  } catch (e) {
+    // ignore
   }
+
+  // 1. If Fast2SMS API Key is present, dispatch real SMS
+  if (isFast2SMSConfigured) {
+    const smsResult = await sendFast2SMSOTP(cleanPhone, generatedOtp);
+    if (smsResult.success) {
+      return {
+        success: true,
+        phone: cleanPhone,
+        provider: 'fast2sms',
+        message: `6-digit verification code sent to +91 ${cleanPhone}.`
+      };
+    } else {
+      return {
+        success: false,
+        error: smsResult.error || 'Failed to dispatch SMS via Fast2SMS gateway.'
+      };
+    }
+  }
+
+  // 2. Supabase SMS fallback
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const e164 = formatE164Phone(cleanPhone);
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: e164,
+        options: { channel: 'sms' }
+      });
+      if (!error) {
+        return {
+          success: true,
+          phone: cleanPhone,
+          provider: 'supabase',
+          message: `Verification code sent to +91 ${cleanPhone} via SMS gateway.`
+        };
+      }
+    } catch (sbErr) {
+      console.warn('Supabase SMS gateway note:', sbErr);
+    }
+  }
+
+  // 3. Fallback when API Key is not yet pasted in .env
+  console.info(
+    `[Fast2SMS Demo/Testing Mode] Phone: +91 ${cleanPhone} | Generated OTP: ${generatedOtp}\n` +
+    `Add VITE_FAST2SMS_API_KEY to your .env to send real carrier SMS.`
+  );
+
+  return {
+    success: true,
+    phone: cleanPhone,
+    provider: 'local-testing',
+    message: `[Test Mode] Verification code is ${generatedOtp}. (Add Fast2SMS API Key in .env for real SMS)`
+  };
 }
 
 /**
- * Verify 6-digit SMS OTP using Firebase Auth Confirmation Result.
- * Automatically saves verified customer into Supabase Auth & LocalStorage session.
+ * Verify 6-digit SMS OTP against stored session or Supabase
+ * @param {string} rawPhone 
+ * @param {string} otpCode 
+ * @param {string} name 
  */
 export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
   const cleanPhone = extract10DigitPhone(rawPhone);
   const cleanOtp = (otpCode || '').trim();
-  const e164 = formatE164Phone(cleanPhone);
 
   if (!cleanOtp) {
     return {
       success: false,
-      error: 'Please enter the 6-digit verification code sent to your phone.'
+      error: 'Please enter the 6-digit verification code.'
     };
   }
 
@@ -331,59 +203,69 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
     };
   }
 
-  // 1. Verify with Firebase Confirmation Result
-  if (activeConfirmationResult) {
-    try {
-      console.log(`🔐 [Firebase Auth] Confirming OTP ${cleanOtp} with Google Identity...`);
-      const userCredential = await activeConfirmationResult.confirm(cleanOtp);
-      const fbUser = userCredential.user;
-      console.log('✅ [Firebase Auth] User verified successfully! UID:', fbUser.uid);
-
-      const userObj = {
-        id: fbUser.uid,
-        phone: cleanPhone,
-        name: name?.trim() || `Customer ${cleanPhone.slice(-4)}`,
-        email: fbUser.email || `${cleanPhone}@customer.vijayahub.com`,
-        isPhoneVerified: true,
-        authProvider: 'firebase',
-        joinedAt: new Date().toISOString()
-      };
-
-      const sessionObj = {
-        access_token: await fbUser.getIdToken(),
-        refresh_token: fbUser.refreshToken || `rt-${cleanPhone}-${Date.now()}`,
-        user: userObj,
-        expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
-      };
-
-      persistUserAndSession(userObj, sessionObj);
-      activeConfirmationResult = null;
-      clearRecaptchaVerifier();
-
-      return { success: true, user: userObj, session: sessionObj, isRealAuth: true };
-    } catch (fbConfirmErr) {
-      console.error('❌ [Firebase OTP Verification Error]:', fbConfirmErr);
-      let errMsg = fbConfirmErr.message || 'Failed to verify code.';
-
-      if (fbConfirmErr.code === 'auth/invalid-verification-code') {
-        errMsg = 'Incorrect 6-digit verification code. Please check your SMS and try again.';
-      } else if (fbConfirmErr.code === 'auth/code-expired') {
-        errMsg = 'The verification code has expired. Please click "Resend OTP Code".';
-      } else if (fbConfirmErr.code === 'auth/session-expired') {
-        errMsg = 'The SMS verification session has expired. Please request a new code.';
-      }
-
-      return {
-        success: false,
-        code: fbConfirmErr.code,
-        error: errMsg
-      };
-    }
+  // 1. Verify against Fast2SMS pending session
+  let pendingData = null;
+  try {
+    const raw = sessionStorage.getItem(PENDING_OTP_STORAGE_KEY);
+    if (raw) pendingData = JSON.parse(raw);
+  } catch (e) {
+    // ignore
   }
 
-  // 2. Supabase SMS verification fallback
+  if (pendingData && pendingData.phone === cleanPhone) {
+    if (Date.now() > pendingData.expiresAt) {
+      return {
+        success: false,
+        error: 'The verification code has expired. Please click "Resend OTP Code".'
+      };
+    }
+
+    if (pendingData.otp !== cleanOtp) {
+      return {
+        success: false,
+        error: 'Incorrect verification code. Please check your SMS and try again.'
+      };
+    }
+
+    // Success! Clear pending OTP
+    sessionStorage.removeItem(PENDING_OTP_STORAGE_KEY);
+
+    const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `usr-${cleanPhone}-${Date.now()}`;
+
+    const userObj = {
+      id: generatedId,
+      phone: cleanPhone,
+      name: name?.trim() || `Customer ${cleanPhone.slice(-4)}`,
+      email: `${cleanPhone}@customer.vijayahub.com`,
+      isPhoneVerified: true,
+      authProvider: 'fast2sms',
+      joinedAt: new Date().toISOString()
+    };
+
+    const sessionObj = {
+      access_token: `f2s-token-${cleanPhone}-${Date.now()}`,
+      refresh_token: `f2s-refresh-${cleanPhone}-${Date.now()}`,
+      token_type: 'bearer',
+      user: userObj,
+      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
+    };
+
+    persistUserAndSession(userObj, sessionObj);
+
+    return {
+      success: true,
+      user: userObj,
+      session: sessionObj,
+      isRealAuth: true
+    };
+  }
+
+  // 2. Supabase SMS Verification Fallback
   if (isSupabaseConfigured && supabase) {
     try {
+      const e164 = formatE164Phone(cleanPhone);
       const { data, error } = await supabase.auth.verifyOtp({
         phone: e164,
         token: cleanOtp,
@@ -391,16 +273,6 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
       });
 
       if (!error && data?.user) {
-        if (name && name.trim()) {
-          try {
-            await supabase.auth.updateUser({
-              data: { full_name: name.trim(), display_name: name.trim() }
-            });
-          } catch {
-            // ignore metadata failure
-          }
-        }
-
         const userObj = {
           id: data.user.id,
           phone: cleanPhone,
@@ -421,7 +293,7 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
 
   return {
     success: false,
-    error: 'No active SMS verification session found. Please click "Change" to re-send the code.'
+    error: 'Incorrect verification code or session expired. Please request a new code.'
   };
 }
 
@@ -433,17 +305,7 @@ export async function signOutAuthUser() {
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
     sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-
-    clearRecaptchaVerifier();
-    activeConfirmationResult = null;
-
-    if (firebaseAuth) {
-      try {
-        await firebaseAuth.signOut();
-      } catch (e) {
-        // ignore
-      }
-    }
+    sessionStorage.removeItem(PENDING_OTP_STORAGE_KEY);
 
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
