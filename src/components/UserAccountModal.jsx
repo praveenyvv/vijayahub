@@ -19,12 +19,10 @@ import {
   RefreshCw,
   ShieldCheck,
   ArrowLeft,
-  Star,
-  ExternalLink,
-  MessageCircle
+  Star
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { sendWhatsAppOtp, verifyPhoneOtp, signOutAuthUser, VIJAYAHUB_WHATSAPP_NUMBER } from '../services/authService';
+import { sendPhoneOtp, verifyPhoneOtp, signOutAuthUser } from '../services/authService';
 
 export default function UserAccountModal() {
   const {
@@ -43,8 +41,6 @@ export default function UserAccountModal() {
   const [loginPhone, setLoginPhone] = useState('');
   const [loginName, setLoginName] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [whatsappLink, setWhatsappLink] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
   const [countdown, setCountdown] = useState(0);
@@ -65,7 +61,7 @@ export default function UserAccountModal() {
     setStatusMessage({ text: '', type: '' });
   };
 
-  const handleGenerateWhatsAppOtp = async (e) => {
+  const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
     const cleanPhone = loginPhone.replace(/\D/g, '');
     if (!cleanPhone || cleanPhone.length < 10) {
@@ -77,26 +73,19 @@ export default function UserAccountModal() {
     setStatusMessage({ text: '', type: '' });
 
     try {
-      const result = await sendWhatsAppOtp(cleanPhone, loginName);
+      const result = await sendPhoneOtp(cleanPhone, loginName);
       if (result.success) {
-        setGeneratedOtp(result.otp);
-        setWhatsappLink(result.whatsappUrl);
         setAuthStage('otp');
         setCountdown(60);
         setStatusMessage({
-          text: `Verification OTP generated! Tap "Send on WhatsApp" to verify.`,
+          text: result.message || `6-digit SMS verification code sent to +91 ${cleanPhone.slice(-10)}`,
           type: 'success'
         });
-
-        // Automatically open WhatsApp with pre-filled message
-        if (typeof window !== 'undefined') {
-          window.open(result.whatsappUrl, '_blank');
-        }
       } else {
-        setStatusMessage({ text: result.error || 'Failed to generate OTP. Please try again.', type: 'error' });
+        setStatusMessage({ text: result.error || 'Failed to send SMS OTP. Please try again.', type: 'error' });
       }
     } catch (err) {
-      setStatusMessage({ text: 'Error initiating WhatsApp verification. Please try again.', type: 'error' });
+      setStatusMessage({ text: 'Network error sending SMS OTP. Please try again.', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -139,8 +128,6 @@ export default function UserAccountModal() {
     setLoginPhone('');
     setLoginName('');
     setOtpCode('');
-    setGeneratedOtp('');
-    setWhatsappLink('');
     setAuthStage('phone');
     setStatusMessage({ text: '', type: '' });
   };
@@ -179,9 +166,9 @@ export default function UserAccountModal() {
         className="relative bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-5 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400">
               <User className="w-5 h-5" />
             </div>
             <div>
@@ -211,7 +198,7 @@ export default function UserAccountModal() {
               onClick={() => setActiveTab('orders')}
               className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition ${
                 activeTab === 'orders'
-                  ? 'border-emerald-600 text-emerald-700 font-extrabold'
+                  ? 'border-amber-600 text-amber-700 font-extrabold'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -222,7 +209,7 @@ export default function UserAccountModal() {
               onClick={() => setActiveTab('profile')}
               className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition ${
                 activeTab === 'profile'
-                  ? 'border-emerald-600 text-emerald-700 font-extrabold'
+                  ? 'border-amber-600 text-amber-700 font-extrabold'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -234,17 +221,15 @@ export default function UserAccountModal() {
 
         {/* Body Content */}
         <div className="p-5 sm:p-6 max-h-[75vh] overflow-y-auto space-y-4">
-          {/* NOT LOGGED IN: 100% FREE WHATSAPP OTP FLOW */}
+          {/* NOT LOGGED IN: REAL SECURE PHONE OTP FLOW */}
           {!currentUser ? (
             <div className="space-y-4">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-950 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                  <MessageCircle className="w-4 h-4" />
-                </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-sm mb-0.5">Instant WhatsApp 1-Tap OTP</p>
+                  <p className="font-bold text-sm mb-0.5">Instant Mobile SMS Verification</p>
                   <p className="text-slate-600 text-[11px] leading-relaxed">
-                    Verify in 3 seconds via WhatsApp to access your orders, pickup codes, and GST tax invoices. 100% free with zero telecom delays.
+                    Verify your phone number with a 6-digit SMS code to access your orders, pickup codes, and GST tax invoices.
                   </p>
                 </div>
               </div>
@@ -266,17 +251,17 @@ export default function UserAccountModal() {
                     <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1">
-                    <p className="text-[11px] leading-relaxed">{statusMessage.text}</p>
+                    <p className="text-[11px] leading-relaxed whitespace-pre-line">{statusMessage.text}</p>
                   </div>
                 </div>
               )}
 
               {authStage === 'phone' ? (
                 /* STAGE 1: ENTER PHONE NUMBER */
-                <form onSubmit={handleGenerateWhatsAppOtp} className="space-y-3 pt-1">
+                <form onSubmit={handleSendOtp} className="space-y-3 pt-1">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      WhatsApp Mobile Number *
+                      Mobile Number *
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-bold text-xs">
@@ -289,7 +274,7 @@ export default function UserAccountModal() {
                         placeholder="9848012345"
                         value={loginPhone}
                         onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, ''))}
-                        className="w-full pl-16 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 text-sm font-semibold focus:outline-hidden"
+                        className="w-full pl-16 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm font-semibold focus:outline-hidden"
                       />
                     </div>
                   </div>
@@ -303,34 +288,34 @@ export default function UserAccountModal() {
                       placeholder="e.g. Ramesh Varma"
                       value={loginName}
                       onChange={(e) => setLoginName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 text-sm focus:outline-hidden"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm focus:outline-hidden"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isLoading || loginPhone.length < 10}
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-extrabold text-sm shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isLoading ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Generating WhatsApp OTP...</span>
+                        <span>Sending SMS OTP...</span>
                       </>
                     ) : (
                       <>
-                        <MessageCircle className="w-4 h-4 fill-white" />
-                        <span>Get OTP via WhatsApp</span>
+                        <KeyRound className="w-4 h-4" />
+                        <span>Get SMS Verification Code</span>
                       </>
                     )}
                   </button>
                 </form>
               ) : (
-                /* STAGE 2: 1-TAP WHATSAPP CONFIRMATION & OTP INPUT */
-                <form onSubmit={handleVerifyOtp} className="space-y-4 pt-1">
+                /* STAGE 2: ENTER OTP CODE */
+                <form onSubmit={handleVerifyOtp} className="space-y-3 pt-1">
                   <div className="flex items-center justify-between text-xs bg-slate-100 p-2.5 rounded-xl border border-slate-200">
                     <span className="text-slate-600">
-                      Verifying: <strong className="text-slate-900">+91 {loginPhone.slice(-10)}</strong>
+                      Code sent to: <strong className="text-slate-900">+91 {loginPhone.slice(-10)}</strong>
                     </span>
                     <button
                       type="button"
@@ -339,43 +324,16 @@ export default function UserAccountModal() {
                         setOtpCode('');
                         setStatusMessage({ text: '', type: '' });
                       }}
-                      className="text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-amber-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <ArrowLeft className="w-3 h-3" />
-                      <span>Change Phone</span>
+                      <span>Change</span>
                     </button>
                   </div>
 
-                  {/* 1-Tap WhatsApp Action Card */}
-                  <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/5 border-2 border-emerald-400/60 rounded-2xl p-4 text-center space-y-2.5">
-                    <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-[11px] font-extrabold">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Step 1: Tap to Send Code to VijayaHub</span>
-                    </div>
-
-                    <p className="text-xs text-slate-700 font-medium">
-                      Your verification OTP is:
-                    </p>
-                    <p className="text-3xl font-black font-mono text-emerald-800 tracking-wider">
-                      {generatedOtp}
-                    </p>
-
-                    <a
-                      href={whatsappLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
-                    >
-                      <MessageCircle className="w-4 h-4 fill-white" />
-                      <span>Tap to Send on WhatsApp</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-
-                  {/* Step 2: Enter OTP Code */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700">
-                      Step 2: Enter the 6-Digit Code Above to Confirm *
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Enter 6-Digit SMS Code *
                     </label>
                     <input
                       type="text"
@@ -385,14 +343,14 @@ export default function UserAccountModal() {
                       placeholder="• • • • • •"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-3.5 py-2.5 text-center tracking-widest font-mono text-lg font-black bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                      className="w-full px-3.5 py-2.5 text-center tracking-widest font-mono text-lg font-black bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isLoading || !otpCode}
-                    className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl font-extrabold text-sm shadow-md shadow-emerald-700/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isLoading ? (
                       <>
@@ -402,7 +360,7 @@ export default function UserAccountModal() {
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Verify & Open Account</span>
+                        <span>Verify & Sign In</span>
                       </>
                     )}
                   </button>
@@ -410,15 +368,15 @@ export default function UserAccountModal() {
                   <div className="text-center pt-1">
                     {countdown > 0 ? (
                       <span className="text-xs text-slate-400 font-medium">
-                        Resend in {countdown}s
+                        Resend code in {countdown}s
                       </span>
                     ) : (
                       <button
                         type="button"
-                        onClick={handleGenerateWhatsAppOtp}
-                        className="text-xs font-bold text-emerald-600 hover:underline cursor-pointer"
+                        onClick={handleSendOtp}
+                        className="text-xs font-bold text-amber-600 hover:underline cursor-pointer"
                       >
-                        Resend WhatsApp Code
+                        Resend SMS OTP Code
                       </button>
                     )}
                   </div>
@@ -499,7 +457,7 @@ export default function UserAccountModal() {
                               setInvoiceOrder(order);
                               setIsAuthModalOpen(false);
                             }}
-                            className="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+                            className="text-[11px] font-bold text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
                           >
                             <FileText className="w-3.5 h-3.5" />
                             <span>Tax Invoice</span>

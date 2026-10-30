@@ -1,8 +1,9 @@
 /**
  * Fast2SMS Gateway Client for VijayaHub
  * 
- * Route: Quick transactional SMS ('q' route - unlocked with account balance, bypasses DND in India).
- * Delivery Speed: ~2-5s to Airtel, Jio, Vi.
+ * Route: 'otp' (Official Fast2SMS OTP Route at ₹0.25 per SMS)
+ * Requirements: Fast2SMS Account with completed Aadhaar/Website KYC.
+ * Speed: 2-5 seconds instant delivery, bypasses Indian DND filters.
  */
 
 const FAST2SMS_API_KEY = import.meta.env.VITE_FAST2SMS_API_KEY || '';
@@ -14,27 +15,25 @@ export const isFast2SMSConfigured = Boolean(
 );
 
 /**
- * Dispatches 6-digit OTP SMS to an Indian 10-digit mobile number via Fast2SMS
+ * Dispatches 6-digit OTP SMS via Fast2SMS official OTP route (₹0.25/SMS)
  * @param {string} phone 10-digit Indian mobile number
- * @param {string} otp 6-digit OTP
+ * @param {string} otp 6-digit numeric OTP code
  */
 export async function sendFast2SMSOTP(phone, otp) {
   const cleanPhone = phone.toString().replace(/\D/g, '').slice(-10);
 
   if (!isFast2SMSConfigured) {
-    console.warn(
-      '⚠️ [Fast2SMS] VITE_FAST2SMS_API_KEY is not configured in .env / Vercel.'
-    );
+    console.warn('⚠️ [Fast2SMS] VITE_FAST2SMS_API_KEY is missing.');
     return {
       success: false,
-      error: 'Fast2SMS API Key is missing. Please add VITE_FAST2SMS_API_KEY to your .env file or Vercel Environment Variables.'
+      error: 'Fast2SMS API Key is missing. Please add VITE_FAST2SMS_API_KEY in your environment.'
     };
   }
 
   try {
-    console.log(`📱 [Fast2SMS] Dispatching OTP SMS to +91 ${cleanPhone}...`);
+    console.log(`📱 [Fast2SMS] Dispatching 25-paise OTP SMS to +91 ${cleanPhone}...`);
 
-    // Fast2SMS Quick Route API (Active and working immediately)
+    // Official Fast2SMS OTP Route (₹0.25 per SMS)
     const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
       method: 'POST',
       headers: {
@@ -42,9 +41,8 @@ export async function sendFast2SMSOTP(phone, otp) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        route: 'q',
-        message: `Your VijayaHub verification code is ${otp}. Valid for 10 minutes.`,
-        language: 'english',
+        route: 'otp',
+        variables_values: otp,
         numbers: cleanPhone
       })
     });
@@ -52,7 +50,7 @@ export async function sendFast2SMSOTP(phone, otp) {
     const data = await response.json();
 
     if (data && data.return === true) {
-      console.log('✅ [Fast2SMS] SMS dispatched successfully!', data);
+      console.log('✅ [Fast2SMS] OTP SMS sent successfully!', data);
       return {
         success: true,
         message: `6-digit verification code sent to +91 ${cleanPhone}.`,
@@ -60,17 +58,20 @@ export async function sendFast2SMSOTP(phone, otp) {
       };
     } else {
       console.error('❌ [Fast2SMS Error Response]:', data);
-      const errMsg = Array.isArray(data?.message) ? data.message.join(', ') : (data?.message || 'Failed to send SMS.');
+      const errMsg = Array.isArray(data?.message)
+        ? data.message.join(', ')
+        : (data?.message || 'Failed to send SMS OTP.');
+
       return {
         success: false,
-        error: `Fast2SMS Gateway Error: ${errMsg}`
+        error: `Fast2SMS: ${errMsg}`
       };
     }
   } catch (err) {
     console.error('❌ [Fast2SMS Network Error]:', err);
     return {
       success: false,
-      error: `Network error connecting to Fast2SMS gateway: ${err.message}`
+      error: `Network error connecting to Fast2SMS: ${err.message}`
     };
   }
 }
