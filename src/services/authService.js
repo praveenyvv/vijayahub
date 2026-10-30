@@ -1,9 +1,11 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { sendFast2SMSOTP, isFast2SMSConfigured } from './fast2smsService';
 
 export const AUTH_USER_STORAGE_KEY = 'vijayahub_user_v1';
 export const AUTH_SESSION_STORAGE_KEY = 'vijayahub_session_v1';
 const PENDING_OTP_STORAGE_KEY = 'vijayahub_pending_otp_v1';
+
+// Official VijayaHub Business/Store WhatsApp Number in Dwaraka Nagar
+export const VIJAYAHUB_WHATSAPP_NUMBER = '919392624326';
 
 /**
  * Extract 10-digit standard Indian phone number
@@ -88,10 +90,13 @@ function generateRandomOTP() {
 }
 
 /**
- * Send 6-digit SMS OTP via Fast2SMS (with Supabase fallback if configured)
- * @param {string} rawPhone 
+ * Generates an instant WhatsApp Verification link for the customer.
+ * When tapped, opens customer's WhatsApp with a pre-formatted verification message
+ * containing the 6-digit OTP code to the VijayaHub store counter helpline.
+ * 
+ * Cost: ₹0.00 Forever (No SMS credits, No DLT, 100% WhatsApp delivery)
  */
-export async function sendPhoneOtp(rawPhone) {
+export async function sendWhatsAppOtp(rawPhone, name = '') {
   const cleanPhone = extract10DigitPhone(rawPhone);
 
   if (!cleanPhone || cleanPhone.length !== 10) {
@@ -108,9 +113,8 @@ export async function sendPhoneOtp(rawPhone) {
     };
   }
 
-  // Generate real 6-digit OTP
   const generatedOtp = generateRandomOTP();
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
 
   // Cache pending verification locally
   try {
@@ -118,6 +122,7 @@ export async function sendPhoneOtp(rawPhone) {
       PENDING_OTP_STORAGE_KEY,
       JSON.stringify({
         phone: cleanPhone,
+        name: name?.trim() || '',
         otp: generatedOtp,
         expiresAt
       })
@@ -126,64 +131,21 @@ export async function sendPhoneOtp(rawPhone) {
     // ignore
   }
 
-  // 1. If Fast2SMS API Key is present, dispatch real SMS
-  if (isFast2SMSConfigured) {
-    const smsResult = await sendFast2SMSOTP(cleanPhone, generatedOtp);
-    if (smsResult.success) {
-      return {
-        success: true,
-        phone: cleanPhone,
-        provider: 'fast2sms',
-        message: `6-digit verification code sent to +91 ${cleanPhone}.`
-      };
-    } else {
-      return {
-        success: false,
-        error: smsResult.error || 'Failed to dispatch SMS via Fast2SMS gateway.'
-      };
-    }
-  }
-
-  // 2. Supabase SMS fallback
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const e164 = formatE164Phone(cleanPhone);
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: e164,
-        options: { channel: 'sms' }
-      });
-      if (!error) {
-        return {
-          success: true,
-          phone: cleanPhone,
-          provider: 'supabase',
-          message: `Verification code sent to +91 ${cleanPhone} via SMS gateway.`
-        };
-      }
-    } catch (sbErr) {
-      console.warn('Supabase SMS gateway note:', sbErr);
-    }
-  }
-
-  // 3. Fallback when API Key is not yet pasted in .env
-  console.info(
-    `[Fast2SMS Demo/Testing Mode] Phone: +91 ${cleanPhone} | Generated OTP: ${generatedOtp}\n` +
-    `Add VITE_FAST2SMS_API_KEY to your .env to send real carrier SMS.`
-  );
+  // Pre-typed message for WhatsApp deep-link
+  const messageText = `Hi VijayaHub! I am verifying my mobile number +91${cleanPhone} for my customer account.\n\nMy 6-digit Verification OTP is: *${generatedOtp}*`;
+  const whatsappUrl = `https://wa.me/${VIJAYAHUB_WHATSAPP_NUMBER}?text=${encodeURIComponent(messageText)}`;
 
   return {
     success: true,
     phone: cleanPhone,
-    provider: 'local-testing',
-    message: `[Test Mode] Verification code is ${generatedOtp}. (Add Fast2SMS API Key in .env for real SMS)`
+    otp: generatedOtp,
+    whatsappUrl,
+    message: `Verification OTP generated: ${generatedOtp}`
   };
 }
 
 /**
- * Verify 6-digit SMS OTP against stored session or Supabase
- * @param {string} rawPhone 
- * @param {string} otpCode 
- * @param {string} name 
+ * Verify 6-digit WhatsApp OTP entered by the customer
  */
 export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
   const cleanPhone = extract10DigitPhone(rawPhone);
@@ -203,7 +165,7 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
     };
   }
 
-  // 1. Verify against Fast2SMS pending session
+  // Verify against pending session
   let pendingData = null;
   try {
     const raw = sessionStorage.getItem(PENDING_OTP_STORAGE_KEY);
@@ -216,14 +178,14 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
     if (Date.now() > pendingData.expiresAt) {
       return {
         success: false,
-        error: 'The verification code has expired. Please click "Resend OTP Code".'
+        error: 'The verification code has expired. Please tap "Resend Code" to generate a fresh one.'
       };
     }
 
     if (pendingData.otp !== cleanOtp) {
       return {
         success: false,
-        error: 'Incorrect verification code. Please check your SMS and try again.'
+        error: 'Incorrect verification code. Please check your code and try again.'
       };
     }
 
@@ -234,19 +196,21 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
       ? crypto.randomUUID()
       : `usr-${cleanPhone}-${Date.now()}`;
 
+    const finalName = name?.trim() || pendingData.name || `Customer ${cleanPhone.slice(-4)}`;
+
     const userObj = {
       id: generatedId,
       phone: cleanPhone,
-      name: name?.trim() || `Customer ${cleanPhone.slice(-4)}`,
+      name: finalName,
       email: `${cleanPhone}@customer.vijayahub.com`,
       isPhoneVerified: true,
-      authProvider: 'fast2sms',
+      authProvider: 'whatsapp-verified',
       joinedAt: new Date().toISOString()
     };
 
     const sessionObj = {
-      access_token: `f2s-token-${cleanPhone}-${Date.now()}`,
-      refresh_token: `f2s-refresh-${cleanPhone}-${Date.now()}`,
+      access_token: `wa-token-${cleanPhone}-${Date.now()}`,
+      refresh_token: `wa-refresh-${cleanPhone}-${Date.now()}`,
       token_type: 'bearer',
       user: userObj,
       expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 30
@@ -260,35 +224,6 @@ export async function verifyPhoneOtp(rawPhone, otpCode, name = '') {
       session: sessionObj,
       isRealAuth: true
     };
-  }
-
-  // 2. Supabase SMS Verification Fallback
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const e164 = formatE164Phone(cleanPhone);
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: e164,
-        token: cleanOtp,
-        type: 'sms'
-      });
-
-      if (!error && data?.user) {
-        const userObj = {
-          id: data.user.id,
-          phone: cleanPhone,
-          name: name?.trim() || data.user.user_metadata?.full_name || `Customer ${cleanPhone.slice(-4)}`,
-          email: data.user.email || `${cleanPhone}@customer.vijayahub.com`,
-          isPhoneVerified: true,
-          authProvider: 'supabase',
-          joinedAt: data.user.created_at || new Date().toISOString()
-        };
-
-        persistUserAndSession(userObj, data.session);
-        return { success: true, user: userObj, session: data.session, isRealAuth: true };
-      }
-    } catch (err) {
-      console.warn('Supabase OTP verification notice:', err);
-    }
   }
 
   return {
